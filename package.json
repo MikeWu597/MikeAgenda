@@ -1,14 +1,20 @@
 {
   "name": "MikeAgenda",
   "version": "1.0.0",
-  "description": "MikeAgenda",
+  "description": "A simple agenda management application",
   "main": "app.js",
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
+    "cookie-parser": "^1.4.6",
+    "crypto": "^1.0.1",
     "express": "^4.17.1",
     "js-yaml": "^4.1.0",
     "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

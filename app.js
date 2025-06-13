@@ -2,9 +2,18 @@ const express = require('express');
 const fs = require('fs');
 const yaml = require('js-yaml');
 const SQLiteManager = require('./services/SQLiteManager'); // 引入 SQLiteManager
+const crypto = require('crypto');
+const apiRoutes = require('./services/api'); // 引入 API 路由
 
 const app = express();
 const sqliteManager = new SQLiteManager(); // 实例化 SQLiteManager
+
+// 使用 express.static 提供静态资源
+app.use(express.static('public'));
+app.use(express.json());
+
+// 引入 API 路由
+app.use('/api', apiRoutes);
 
 // 读取配置文件
 const configPath = './config.yml';
@@ -28,17 +37,9 @@ sqliteManager.init().then(() => {
     process.exit(1);
 });
 
-// 解析 cookie 中间件
-app.use((req, res, next) => {
-    req.cookies = {};
-    if (req.headers.cookie) {
-        req.headers.cookie.split(';').forEach(cookie => {
-            const parts = cookie.split('=');
-            req.cookies[parts[0].trim()] = (parts[1] || '').trim();
-        });
-    }
-    next();
-});
+// 安装并使用 cookie-parser 中间件
+const cookieParser = require('cookie-parser');
+app.use(cookieParser());
 
 // 简单的路由示例
 app.get('/', async (req, res) => {
@@ -60,6 +61,40 @@ app.get('/', async (req, res) => {
         res.redirect('/login.html');
     }
 });
+
+// 登录路由
+app.post('/login', async (req, res) => {
+    const { username: inputUsername, password: inputPassword } = req.body;
+
+    if (inputUsername === username && inputPassword === password) {
+        const session = crypto.randomBytes(32).toString('hex');
+        const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+
+        await sqliteManager.createSession(session, ipAddress, userAgent);
+
+        res.json({ success: true, session });
+    } else {
+        res.json({ success: false });
+    }
+});
+
+// 创建会话
+SQLiteManager.prototype.createSession = function(session, ipAddress, userAgent) {
+    return new Promise((resolve, reject) => {
+        const query = `
+            INSERT INTO sessions (session, ip_address, timestamp, user_agent)
+            VALUES (?, ?, datetime('now'), ?)
+        `;
+        this.db.run(query, [session, ipAddress, userAgent], (err) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+};
 
 // 启动服务器
 app.listen(port, () => {

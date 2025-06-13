@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建新事项</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .form-group {
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">创建新事项</div>
+                    <div class="card-body">
+                        <form id="createItemForm">
+                            <div class="form-group">
+                                <label for="title">标题</label>
+                                <input type="text" class="form-control" id="title" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">描述</label>
+                                <textarea class="form-control" id="description" rows="3"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="deadline">截止日期</label>
+                                <input type="date" class="form-control" id="deadline">
+                            </div>
+                            <div class="form-group">
+                                <label for="plannedTime">计划时间</label>
+                                <input type="datetime-local" class="form-control" id="plannedTime">
+                            </div>
+                            <button type="submit" class="btn btn-primary">创建事项</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('createItemForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const description = document.getElementById('description').value;
+            const deadline = document.getElementById('deadline').value;
+            const plannedTime = document.getElementById('plannedTime').value;
+
+            // 获取 session 并添加到请求体中
+            const session = document.cookie.split('; ').find(row => row.startsWith('session=')).split('=')[1];
+
+            // 提交数据到后端
+            const response = await fetch('/api/createItem', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, description, deadline, plannedTime, session }), // 添加 session 到 body
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = '/dash.html';
+            } else {
+                alert(data.message || '创建失败，请重试');
+            }
+        });
+    </script>
+</body>
+</html>

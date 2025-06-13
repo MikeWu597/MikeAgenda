@@ -18,7 +18,7 @@ class SQLiteManager {
                 }
             });
 
-            // 初始化表结构（暂时留空）
+            // 初始化表结构
             await this.createTables();
         } catch (error) {
             console.error('Error initializing SQLite database:', error);
@@ -52,6 +52,9 @@ class SQLiteManager {
 
     async validateSession(session) {
         return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
             this.db.get('SELECT * FROM sessions WHERE session = ? AND logged_out = 0', [session], (err, row) => {
                 if (err) {
                     reject(err);
@@ -72,6 +75,21 @@ class SQLiteManager {
                 }
             });
         }
+    }
+        // 获取事项列表
+    async getItems() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM items WHERE done = 0 AND archived = 0', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
     }
 }
 
