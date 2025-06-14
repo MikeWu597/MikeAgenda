@@ -248,4 +248,213 @@ router.post('/deleteItem', async (req, res) => {
     }
 });
 
+// 获取所有分类
+router.post('/getCategories', async (req, res) => {
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const categories = await sqliteManager.getCategories();
+        res.json({ success: true, categories });
+    } catch (err) {
+        console.error('Error fetching categories:', err.message);
+        res.status(500).json({ success: false, message: '获取分类失败' });
+    }
+});
+
+// 获取单个分类
+router.get('/getCategory/:id', async (req, res) => {
+    const categoryId = req.params.id;
+
+    if (!categoryId) {
+        return res.status(400).json({ success: false, message: '缺少分类 ID' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const query = `
+            SELECT * FROM category WHERE id = ?
+        `;
+
+        sqliteManager.db.get(query, [categoryId], (err, row) => {
+            if (err) {
+                console.error('Error fetching category:', err.message);
+                res.status(500).json({ success: false, message: '获取分类失败' });
+            } else if (!row) {
+                res.status(404).json({ success: false, message: '分类未找到' });
+            } else {
+                res.json({ success: true, category: row });
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching category:', err.message);
+        res.status(500).json({ success: false, message: '获取分类失败' });
+    }
+});
+
+// 创建分类
+router.post('/createCategory', async (req, res) => {
+    // 检查 req.body 是否存在
+    if (!req.body) {
+        return res.status(400).json({ success: false, message: '请求体为空' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const { name, color, note, metadata } = req.body;
+
+        if (!name || !color || !note) {
+            return res.status(400).json({ success: false, message: '缺少必要字段' });
+        }
+
+        const query = `
+            INSERT INTO category (name, color, note, metadata)
+            VALUES (?, ?, ?, ?)
+        `;
+
+        sqliteManager.db.run(query, [name, color, note, metadata || null], function(err) {
+            if (err) {
+                console.error('Error creating category:', err.message);
+                res.status(500).json({ success: false, message: '创建失败' });
+            } else {
+                res.json({ success: true, message: '分类创建成功' });
+            }
+        });
+    } catch (err) {
+        console.error('Error creating category:', err.message);
+        res.status(500).json({ success: false, message: '创建失败' });
+    }
+});
+
+// 更新分类
+router.put('/updateCategory/:id', async (req, res) => {
+    const categoryId = req.params.id;
+
+    if (!categoryId) {
+        return res.status(400).json({ success: false, message: '缺少分类 ID' });
+    }
+
+    // 检查 req.body 是否存在
+    if (!req.body) {
+        return res.status(400).json({ success: false, message: '请求体为空' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const { name, color, note, metadata } = req.body;
+
+        if (!name || !color || !note) {
+            return res.status(400).json({ success: false, message: '缺少必要字段' });
+        }
+
+        const query = `
+            UPDATE category
+            SET name = ?, color = ?, note = ?, metadata = ?
+            WHERE id = ?
+        `;
+
+        sqliteManager.db.run(query, [name, color, note, metadata || null, categoryId], function(err) {
+            if (err) {
+                console.error('Error updating category:', err.message);
+                res.status(500).json({ success: false, message: '更新失败' });
+            } else {
+                res.json({ success: true, message: '分类更新成功' });
+            }
+        });
+    } catch (err) {
+        console.error('Error updating category:', err.message);
+        res.status(500).json({ success: false, message: '更新失败' });
+    }
+});
+
+// 删除分类
+router.delete('/deleteCategory/:id', async (req, res) => {
+    const categoryId = req.params.id;
+
+    if (!categoryId) {
+        return res.status(400).json({ success: false, message: '缺少分类 ID' });
+    }
+
+    // 检查 req.body 是否存在
+    if (!req.body) {
+        return res.status(400).json({ success: false, message: '请求体为空' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const query = `
+            DELETE FROM category
+            WHERE id = ?
+        `;
+
+        sqliteManager.db.run(query, [categoryId], function(err) {
+            if (err) {
+                console.error('Error deleting category:', err.message);
+                res.status(500).json({ success: false, message: '删除失败' });
+            } else {
+                res.json({ success: true, message: '分类已删除' });
+            }
+        });
+    } catch (err) {
+        console.error('Error deleting category:', err.message);
+        res.status(500).json({ success: false, message: '删除失败' });
+    }
+});
+
 module.exports = router;

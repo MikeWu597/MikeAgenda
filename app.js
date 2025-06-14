@@ -79,7 +79,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// 创建会话
+// 创建会话方法
 SQLiteManager.prototype.createSession = function(session, ipAddress, userAgent) {
     return new Promise((resolve, reject) => {
         const query = `

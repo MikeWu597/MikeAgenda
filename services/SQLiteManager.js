@@ -39,12 +39,50 @@ class SQLiteManager {
             );
         `;
 
+        // 创建 items 表
+        const createItemsTableQuery = `
+            CREATE TABLE IF NOT EXISTS items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                description TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                deadline DATETIME,
+                metadata TEXT,
+                archived BOOLEAN DEFAULT 0,
+                done BOOLEAN DEFAULT 0,
+                planned_time DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+        `;
+
+        // 新增的表：new_table
+        const createCategoryTableQuery = `
+            CREATE TABLE IF NOT EXISTS category (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                note TEXT NOT NULL,
+                metadata TEXT
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
                     reject(err);
                 } else {
-                    resolve();
+                    this.db.run(createItemsTableQuery, (err) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            this.db.run(createCategoryTableQuery, (err) => {
+                                if (err) {
+                                    reject(err);
+                                } else {
+                                    resolve();
+                                }
+                            });
+                        }
+                    });
                 }
             });
         });
@@ -76,7 +114,85 @@ class SQLiteManager {
             });
         }
     }
-        // 获取事项列表
+
+    // 新增：创建分类
+    async createCategory(name, color, note, metadata) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                INSERT INTO category (name, color, note, metadata)
+                VALUES (?, ?, ?, ?)
+            `;
+            this.db.run(query, [name, color, note, metadata], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：编辑分类
+    async updateCategory(id, name, color, note, metadata) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                UPDATE category
+                SET name = ?, color = ?, note = ?, metadata = ?
+                WHERE id = ?
+            `;
+            this.db.run(query, [name, color, note, metadata, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除分类
+    async deleteCategory(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                DELETE FROM category
+                WHERE id = ?
+            `;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有分类
+    async getCategories() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM category', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 获取事项列表
     async getItems() {
         return new Promise((resolve, reject) => {
             if (!this.db) {
