@@ -91,19 +91,34 @@ router.post('/updateItem', async (req, res) => {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
 
-        const { title, description, deadline, planned_time } = req.body;
+        const { title, description, deadline, planned_time, category } = req.body;
 
         if (!title) {
             return res.status(400).json({ success: false, message: '缺少必要字段' });
         }
 
+        // 修改: 处理分类信息为 JSON 数组
+        let categoryIds = [];
+        if (category && Array.isArray(category)) {
+            for (const categoryId of category) {
+                // 检查分类是否已存在
+                const existingCategory = await sqliteManager.getCategoryById(categoryId);
+                if (existingCategory) {
+                    categoryIds.push(existingCategory.id);
+                } else {
+                    // 如果分类不存在，则返回错误
+                    return res.status(400).json({ success: false, message: '分类不存在' });
+                }
+            }
+        }
+        
         const query = `
             UPDATE items
-            SET title = ?, description = ?, deadline = ?, planned_time = ?
+            SET title = ?, description = ?, deadline = ?, planned_time = ?, category = ?
             WHERE id = ?
         `;
 
-        sqliteManager.db.run(query, [title, description || null, deadline || null, planned_time || null, itemId], function(err) {
+        sqliteManager.db.run(query, [title, description || null, deadline || null, planned_time || null, JSON.stringify(categoryIds), itemId], function(err) {
             if (err) {
                 console.error('Error updating item:', err.message);
                 res.status(500).json({ success: false, message: '更新失败' });
