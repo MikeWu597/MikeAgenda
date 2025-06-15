@@ -290,6 +290,52 @@ router.post('/getCategories', async (req, res) => {
     }
 });
 
+// 根据分类 ID 获取该分类下的所有事项
+router.post('/getItemsByCategory', async (req, res) => {
+    const categoryId = req.body.id; // 修改: 从请求体中获取分类 ID
+
+    if (!categoryId) {
+        return res.status(400).json({ success: false, message: '缺少分类 ID' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        // 验证 session
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 修改: 使用更灵活的查询逻辑，确保能够匹配分类 ID
+        const query = `
+            SELECT * FROM items WHERE JSON_EXTRACT(category, '$') LIKE ? OR JSON_EXTRACT(category, '$') LIKE ?
+        `;
+        const params = [`%${categoryId}%`, `%,${categoryId}%`];
+
+        sqliteManager.db.all(query, params, (err, rows) => {
+            if (err) {
+                console.error('Error fetching items by category:', err.message);
+                res.status(500).json({ success: false, message: '获取事项失败' });
+            } else {
+                console.log(`Found ${rows.length} items for category ID ${categoryId}`); // 调试日志
+                res.json({ success: true, items: rows });
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching items by category:', err.message);
+        res.status(500).json({ success: false, message: '获取事项失败' });
+    }
+});
+
 // 获取单个分类
 router.get('/getCategory/:id', async (req, res) => {
     const categoryId = req.params.id;
@@ -298,9 +344,22 @@ router.get('/getCategory/:id', async (req, res) => {
         return res.status(400).json({ success: false, message: '缺少分类 ID' });
     }
 
+    // 从请求头中获取 session
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 验证 session
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
 
         const query = `
             SELECT * FROM category WHERE id = ?
