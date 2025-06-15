@@ -147,11 +147,20 @@
             container.innerHTML = ''; // 清空容器
 
             items.forEach(item => {
+                // 解析分类信息
+                const categoryIds = JSON.parse(item.category || '[]');
+                const categoryBadges = categoryIds.map(id => {
+                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                }).join('');
+
                 const card = document.createElement('div');
                 card.className = 'card item-card';
                 card.innerHTML = `
                     <div class="card-header">
-                        <h5>${item.title}</h5>
+                        <div class="d-flex align-items-center">
+                            ${categoryBadges}
+                            <h5 class="ms-2">${item.title}</h5>
+                        </div>
                         <div class="d-flex align-items-center gap-2">
                             ${item.deadline ? `<i class="bi bi-calendar-date"></i><small>${item.deadline}</small>` : ''}
                             ${item.planned_time ? `<i class="bi bi-clock"></i><small>${item.planned_time.replace('T', ' ')}</small>` : ''}
@@ -395,9 +404,6 @@
             }
         });
 
-        // 页面加载时获取事项
-        document.addEventListener('DOMContentLoaded', fetchItems);
-
         // 页面加载时初始化拖动排序功能
         document.addEventListener('DOMContentLoaded', () => {
             initDragAndDrop();
@@ -484,6 +490,58 @@
                 }
             }, { offset: Number.NEGATIVE_INFINITY }).element;
         }
+
+        // 新增：存储所有分类的变量
+        let allCategories = [];
+
+        // 修改：在页面加载时获取所有分类
+        async function fetchCategories() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    allCategories = data.categories; // 存储所有分类
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        }
+
+        // 修改：在页面加载时调用 fetchCategories
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchCategories();
+            fetchItems();
+        });
+
+        // 修改：更新 getCategoryColor 和 getCategoryName 函数
+        function getCategoryColor(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.color : '#000'; // 默认黑色
+        }
+
+        function getCategoryName(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.name : '未知分类'; // 默认名称
+        }
+
     </script>
 </body>
 </html>

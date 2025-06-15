@@ -5,39 +5,55 @@ const sqliteManager = new SQLiteManager(); // 实例化 SQLiteManager
 
 // 创建事项 API
 router.post('/createItem', async (req, res) => {
-    // 检查 req.body 是否存在
-    if (!req.body) {
-        return res.status(400).json({ success: false, message: '请求体为空' });
-    }
-
-    // 从请求体中获取 session
-    const session = req.body.session;
-
-    if (!session) {
-        return res.status(401).json({ success: false, message: '未授权' });
-    }
-
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 检查 req.body 是否存在
+        if (!req.body) {
+            return res.status(400).json({ success: false, message: '请求体为空' });
+        }
+
+        // 从请求体中获取 session
+        const session = req.body.session;
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
 
         const isValid = await sqliteManager.validateSession(session);
         if (!isValid) {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
 
-        const { title, description, deadline, plannedTime } = req.body;
+        const { title, description, deadline, plannedTime, category } = req.body;
 
         if (!title) {
             return res.status(400).json({ success: false, message: '缺少必要字段' });
         }
 
+        // 修改: 处理分类信息为 JSON 数组，但不再创建新分类
+        let categoryIds = [];
+        if (category && Array.isArray(category)) {
+            for (const categoryId of category) {
+                // 检查分类是否已存在
+                const existingCategory = await sqliteManager.getCategoryById(categoryId);
+                if (existingCategory) {
+                    categoryIds.push(existingCategory.id);
+                } else {
+                    // 如果分类不存在，则返回错误
+                    return res.status(400).json({ success: false, message: '分类不存在' });
+                }
+            }
+        }
+
         const query = `
-            INSERT INTO items (title, description, deadline, planned_time)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO items (title, description, deadline, planned_time, category)
+            VALUES (?, ?, ?, ?, ?)
         `;
 
-        sqliteManager.db.run(query, [title, description || null, deadline || null, plannedTime || null], function(err) {
+        // 将分类 ID 数组转换为 JSON 字符串存储
+        sqliteManager.db.run(query, [title, description || null, deadline || null, plannedTime || null, JSON.stringify(categoryIds)], function(err) {
             if (err) {
                 console.error('Error inserting item:', err.message);
                 res.status(500).json({ success: false, message: '创建失败' });
@@ -53,22 +69,22 @@ router.post('/createItem', async (req, res) => {
 
 // 更新事项 API
 router.post('/updateItem', async (req, res) => {
-    // 检查 req.body 是否存在
-    if (!req.body) {
-        return res.status(400).json({ success: false, message: '请求体为空' });
-    }
-
-    // 从请求体中获取 session 和事项 ID
-    const session = req.body.session;
-    const itemId = req.body.id;
-
-    if (!session || !itemId) {
-        return res.status(401).json({ success: false, message: '未授权' });
-    }
-
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 检查 req.body 是否存在
+        if (!req.body) {
+            return res.status(400).json({ success: false, message: '请求体为空' });
+        }
+
+        // 从请求体中获取 session 和事项 ID
+        const session = req.body.session;
+        const itemId = req.body.id;
+
+        if (!session || !itemId) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
 
         const isValid = await sqliteManager.validateSession(session);
         if (!isValid) {
@@ -456,5 +472,57 @@ router.delete('/deleteCategory/:id', async (req, res) => {
         res.status(500).json({ success: false, message: '删除失败' });
     }
 });
+
+// 新增：根据分类名称获取分类 ID
+router.get('/getCategoryByName/:name', async (req, res) => {
+    const categoryName = req.params.name;
+
+    if (!categoryName) {
+        return res.status(400).json({ success: false, message: '缺少分类名称' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const query = `
+            SELECT * FROM category WHERE name = ?
+        `;
+
+        sqliteManager.db.get(query, [categoryName], (err, row) => {
+            if (err) {
+                console.error('Error fetching category:', err.message);
+                res.status(500).json({ success: false, message: '获取分类失败' });
+            } else if (!row) {
+                res.status(404).json({ success: false, message: '分类未找到' });
+            } else {
+                res.json({ success: true, category: row });
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching category:', err.message);
+        res.status(500).json({ success: false, message: '获取分类失败' });
+    }
+});
+
+// 新增：根据分类 ID 获取分类信息
+// sqliteManager.getCategoryById = async (id) => {
+//     return new Promise((resolve, reject) => {
+//         if (!this.db) {
+//             reject(new Error('Database not initialized'));
+//         }
+//         const query = `
+//             SELECT * FROM category WHERE id = ?
+//         `;
+//         this.db.get(query, [id], (err, row) => {
+
+//             if (err) {
+//                 reject(err);
+//             } else {
+//                 resolve(row);
+//             }
+//         });
+//     });
+// };
 
 module.exports = router;

@@ -50,11 +50,12 @@ class SQLiteManager {
                 metadata TEXT,
                 archived BOOLEAN DEFAULT 0,
                 done BOOLEAN DEFAULT 0,
-                planned_time DATETIME DEFAULT CURRENT_TIMESTAMP
+                planned_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                category TEXT
             );
         `;
 
-        // 新增的表：new_table
+        // 创建 category 表
         const createCategoryTableQuery = `
             CREATE TABLE IF NOT EXISTS category (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,6 +172,50 @@ class SQLiteManager {
                     reject(err);
                 } else {
                     resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：根据分类名称获取分类 ID
+    async getCategoryByName(name) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                SELECT * FROM category WHERE name = ?
+            `;
+            this.db.get(query, [name], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    }
+
+    // 新增：根据分类 ID 获取分类信息
+    async getCategoryById(id) {
+        // 确保数据库已初始化
+        if (!this.db) {
+            await this.init();
+        }
+        // 将 id 转换为整数
+        const categoryId = parseInt(id, 10);
+        if (isNaN(categoryId)) {
+            throw new Error('Invalid category ID');
+        }
+        return new Promise((resolve, reject) => {
+            const query = `
+                SELECT * FROM category WHERE id = ?
+            `;
+            this.db.get(query, [categoryId], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
                 }
             });
         });

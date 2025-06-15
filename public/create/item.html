@@ -3,42 +3,54 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>创建新事项</title>
+    <title>新建事项</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .form-group {
-            margin-bottom: 1rem;
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
     <div class="container mt-5">
         <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">创建新事项</div>
-                    <div class="card-body">
-                        <form id="createItemForm">
-                            <div class="form-group">
-                                <label for="title">标题</label>
-                                <input type="text" class="form-control" id="title" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="description">描述</label>
-                                <textarea class="form-control" id="description" rows="3"></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="deadline">截止日期</label>
-                                <input type="date" class="form-control" id="deadline">
-                            </div>
-                            <div class="form-group">
-                                <label for="plannedTime">计划时间</label>
-                                <input type="datetime-local" class="form-control" id="plannedTime">
-                            </div>
-                            <button type="submit" class="btn btn-primary">创建事项</button>
-                        </form>
-                    </div>
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    新建事项
+                </h2>
+                <div class="form-container">
+                    <form id="createForm">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">标题</label>
+                            <input type="text" class="form-control" id="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">描述</label>
+                            <textarea class="form-control" id="description"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dueDate" class="form-label">截止日期</label>
+                            <input type="date" class="form-control" id="dueDate" required>
+                        </div>
+                        <!-- 新增: 分类选择 -->
+                        <div class="mb-3">
+                            <label for="category" class="form-label">分类</label>
+                            <select class="form-control" id="category" multiple>
+                                <!-- 分类选项将通过 JavaScript 动态加载 -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="plannedTime" class="form-label">计划时间</label>
+                            <input type="datetime-local" class="form-control" id="plannedTime">
+                        </div>
+                        <button type="submit" class="btn btn-primary">创建事项</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -46,31 +58,83 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('createItemForm').addEventListener('submit', async (e) => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 加载分类选项
+            try {
+                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+                const response = await fetch('/api/getCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session: sessionValue })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const categorySelect = document.getElementById('category');
+                    data.categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id; // 使用分类 ID 作为值
+                        option.textContent = category.name;
+                        categorySelect.appendChild(option);
+                    });
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        });
+
+        document.getElementById('createForm').addEventListener('submit', (e) => {
             e.preventDefault();
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
-            const deadline = document.getElementById('deadline').value;
+            const dueDate = document.getElementById('dueDate').value;
             const plannedTime = document.getElementById('plannedTime').value;
+            // 修改: 将选中的分类 ID 转换为 JSON 数组
+            const selectedCategories = Array.from(document.getElementById('category').selectedOptions).map(option => option.value);
 
-            // 获取 session 并添加到请求体中
-            const session = document.cookie.split('; ').find(row => row.startsWith('session=')).split('=')[1];
-
-            // 提交数据到后端
-            const response = await fetch('/api/createItem', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ title, description, deadline, plannedTime, session }), // 添加 session 到 body
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                window.location.href = '/dash.html';
-            } else {
-                alert(data.message || '创建失败，请重试');
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
             }
+
+            const sessionValue = session.split('=')[1];
+
+            fetch('/api/createItem', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, description, dueDate, plannedTime, category: selectedCategories, session: sessionValue })
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('事项已创建');
+                    window.location.href = '/view/item.html';
+                } else {
+                    alert(data.message || '创建事项失败');
+                }
+            });
         });
     </script>
 </body>

@@ -81,6 +81,10 @@
         <div class="action-btn" id="createItemBtn">
             <i class="bi bi-calendar-plus"></i> <!-- 新图标 -->
         </div>
+        <!-- 新增: 创建分类按钮 -->
+        <div class="action-btn" id="createCategoryBtn">
+            <i class="bi bi-folder-plus"></i>
+        </div>
     </div>
 
     <div class="floating-btn" id="floatingBtn">
@@ -93,6 +97,8 @@
             const floatingBtn = document.getElementById('floatingBtn');
             const actionButtons = document.getElementById('actionButtons');
             const createItemBtn = document.getElementById('createItemBtn');
+            // 新增: 获取创建分类按钮
+            const createCategoryBtn = document.getElementById('createCategoryBtn');
 
             // 点击浮动按钮时显示/隐藏操作按钮
             floatingBtn.addEventListener('click', function() {
@@ -109,6 +115,11 @@
             // 点击创建事项按钮时跳转到 item.html
             createItemBtn.addEventListener('click', function() {
                 window.location.href = '/create/item.html';
+            });
+
+            // 新增: 点击创建分类按钮时跳转到 category.html
+            createCategoryBtn.addEventListener('click', function() {
+                window.location.href = '/create/category.html';
             });
         });
     </script>
