@@ -243,20 +243,31 @@
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const categoryId = btn.getAttribute('data-id');
-                    fetch(`/api/getCategory/${categoryId}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                const category = data.category;
-                                document.getElementById('editCategoryId').value = category.id;
-                                document.getElementById('editName').value = category.name;
-                                document.getElementById('editColor').value = category.color;
-                                document.getElementById('editNote').value = category.note;
-                                new bootstrap.Modal(document.getElementById('editModal')).show();
-                            } else {
-                                alert('获取分类信息失败');
-                            }
-                        });
+                    const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const sessionValue = session.split('=')[1];
+                    fetch(`/api/getCategory/${categoryId}`, {
+                        method: 'GET',
+                        headers: { 'session': sessionValue }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const category = data.category;
+                            document.getElementById('editCategoryId').value = category.id;
+                            document.getElementById('editName').value = category.name;
+                            document.getElementById('editColor').value = category.color;
+                            document.getElementById('editNote').value = category.note;
+                            new bootstrap.Modal(document.getElementById('editModal')).show();
+                        } else {
+                            alert('获取分类信息失败');
+                        }
+                    });
                 });
             });
 
@@ -284,7 +295,7 @@
                                 alert('分类已删除');
                                 fetchCategories();
                             } else {
-                                alert('删除分类失败');
+                                alert(data.message || '删除分类失败');
                             }
                         });
                     }

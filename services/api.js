@@ -315,9 +315,12 @@ router.post('/getItemsByCategory', async (req, res) => {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
 
-        // 修改: 使用更灵活的查询逻辑，确保能够匹配分类 ID
+        // 修改: 使用更灵活的查询逻辑，确保能够匹配分类 ID，并且只返回未被删除且未被完成的事项
         const query = `
-            SELECT * FROM items WHERE JSON_EXTRACT(category, '$') LIKE ? OR JSON_EXTRACT(category, '$') LIKE ?
+            SELECT * FROM items 
+            WHERE (JSON_EXTRACT(category, '$') LIKE ? OR JSON_EXTRACT(category, '$') LIKE ?)
+            AND archived = 0
+            AND done = 0
         `;
         const params = [`%${categoryId}%`, `%,${categoryId}%`];
 
@@ -485,8 +488,8 @@ router.put('/updateCategory/:id', async (req, res) => {
 });
 
 // 删除分类
-router.delete('/deleteCategory/:id', async (req, res) => {
-    const categoryId = req.params.id;
+router.post('/deleteCategory', async (req, res) => {
+    const categoryId = req.body.id;
 
     if (!categoryId) {
         return res.status(400).json({ success: false, message: '缺少分类 ID' });
@@ -513,17 +516,37 @@ router.delete('/deleteCategory/:id', async (req, res) => {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
 
-        const query = `
-            DELETE FROM category
-            WHERE id = ?
+        // 检查分类下是否有未完成的事项
+        const queryCheckItems = `
+            SELECT COUNT(*) as count 
+            FROM items 
+            WHERE (JSON_EXTRACT(category, '$') LIKE ? OR JSON_EXTRACT(category, '$') LIKE ?)
+            AND archived = 0
         `;
+        const paramsCheckItems = [`%${categoryId}%`, `%,${categoryId}%`];
 
-        sqliteManager.db.run(query, [categoryId], function(err) {
+        sqliteManager.db.get(queryCheckItems, paramsCheckItems, async (err, result) => {
             if (err) {
-                console.error('Error deleting category:', err.message);
-                res.status(500).json({ success: false, message: '删除失败' });
+                console.error('Error checking items for category:', err.message);
+                res.status(500).json({ success: false, message: '检查分类事项失败' });
+            } else if (result.count > 0) {
+                // 如果分类下有未完成的事项，不允许删除
+                res.status(400).json({ success: false, message: '该分类下有未完成的事项，无法删除' });
             } else {
-                res.json({ success: true, message: '分类已删除' });
+                // 删除分类
+                const queryDeleteCategory = `
+                    DELETE FROM category
+                    WHERE id = ?
+                `;
+
+                sqliteManager.db.run(queryDeleteCategory, [categoryId], function(err) {
+                    if (err) {
+                        console.error('Error deleting category:', err.message);
+                        res.status(500).json({ success: false, message: '删除失败' });
+                    } else {
+                        res.json({ success: true, message: '分类已删除' });
+                    }
+                });
             }
         });
     } catch (err) {
