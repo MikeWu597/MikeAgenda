@@ -54,10 +54,6 @@
                             <label for="editNote" class="form-label">备注</label>
                             <textarea class="form-control" id="editNote"></textarea>
                         </div>
-                        <div class="mb-3">
-                            <label for="editMetadata" class="form-label">元数据</label>
-                            <input type="text" class="form-control" id="editMetadata">
-                        </div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -117,7 +113,6 @@
                         <small>${category.note}</small>
                     </div>
                     <div class="card-body category-details" style="display: none;">
-                        <p>元数据: ${category.metadata || '无'}</p>
                         <button class="btn btn-primary edit-btn" data-id="${category.id}">编辑</button>
                         <button class="btn btn-danger delete-btn" data-id="${category.id}">删除</button>
                     </div>
@@ -146,7 +141,6 @@
                                 document.getElementById('editName').value = category.name;
                                 document.getElementById('editColor').value = category.color;
                                 document.getElementById('editNote').value = category.note;
-                                document.getElementById('editMetadata').value = category.metadata;
                                 new bootstrap.Modal(document.getElementById('editModal')).show();
                             } else {
                                 alert('获取分类信息失败');
@@ -193,7 +187,6 @@
             const name = document.getElementById('editName').value;
             const color = document.getElementById('editColor').value;
             const note = document.getElementById('editNote').value;
-            const metadata = document.getElementById('editMetadata').value;
 
             const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
             if (!session) {
@@ -209,7 +202,7 @@
                 fetch(`/api/updateCategory/${categoryId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, color, note, metadata, session: sessionValue })
+                    body: JSON.stringify({ name, color, note, session: sessionValue })
                 })
                 .then(response => {
                     if (response.status === 401) {
@@ -233,7 +226,7 @@
                 fetch('/api/createCategory', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, color, note, metadata, session: sessionValue })
+                    body: JSON.stringify({ name, color, note, session: sessionValue })
                 })
                 .then(response => {
                     if (response.status === 401) {
