@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建循环</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    创建循环
+                </h2>
+                <div class="form-container">
+                    <form id="createForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="note" class="form-label">备注</label>
+                            <textarea class="form-control" id="note"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cycleType" class="form-label">循环方式</label>
+                            <select class="form-select" id="cycleType" required>
+                                <option value="">请选择循环方式</option>
+                                <option value="weekly">每周某天</option>
+                                <option value="monthly">每月第某天</option>
+                                <option value="monthly_last">每月倒数某天</option>
+                                <option value="daily">每天</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="cycleConfigContainer">
+                            <!-- 动态生成的循环配置 -->
+                        </div>
+                        <button type="submit" class="btn btn-primary">创建循环</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('createForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const note = document.getElementById('note').value;
+            const cycleType = document.getElementById('cycleType').value;
+
+            // 获取循环配置
+            let cycleConfig = {};
+            let nextDate = null; // 新增：用于存储下次执行日期
+
+            if (cycleType === 'weekly') {
+                const day = document.getElementById('weeklyDay').value;
+                cycleConfig.day = day;
+
+                // 计算下一次执行日期
+                const today = new Date();
+                const targetDay = parseInt(day, 10);
+                let daysToAdd = (targetDay - today.getDay() + 7) % 7;
+                if (daysToAdd === 0) daysToAdd = 7; // 如果今天就是目标日期，则跳到下一周
+                nextDate = new Date(today);
+                nextDate.setDate(today.getDate() + daysToAdd);
+            } else if (cycleType === 'monthly') {
+                const day = document.getElementById('monthlyDay').value;
+                cycleConfig.day = day;
+
+                // 计算下一次执行日期
+                const today = new Date();
+                const targetDay = parseInt(day, 10) + 1;
+                nextDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
+                if (nextDate < today) {
+                    nextDate.setMonth(today.getMonth() + 1); // 如果目标日期已经过去，则跳到下一个月
+                }
+            } else if (cycleType === 'monthly_last') {
+                const day = document.getElementById('monthlyLastDay').value;
+                cycleConfig.day = day;
+
+                // 计算下一次执行日期
+                const today = new Date();
+                const targetDay = parseInt(day, 10) - 1;
+                nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // 当月最后一天
+                nextDate.setDate(nextDate.getDate() - targetDay + 1); // 倒数第几天
+                if (nextDate < today) {
+                    nextDate.setMonth(today.getMonth() + 1); // 如果目标日期已经过去，则跳到下一个月
+                }
+            } else if (cycleType === 'daily') {
+                // 每天执行，下一次执行日期为明天
+                const today = new Date();
+                nextDate = new Date(today);
+                nextDate.setDate(today.getDate() + 1);
+            }
+
+            // 格式化下次执行日期为 ISO 格式（时间部分固定为 00:00:00）
+            const formattedNextDate = nextDate
+                ? `${nextDate.toISOString().split('T')[0]}T00:00:00`
+                : new Date().toISOString(); // 默认为当前日期
+
+            // 添加 session 参数
+            
+            const sessionTrim = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!sessionTrim) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const session = sessionTrim.split('=')[1];
+
+            // 构造请求体
+            const requestBody = {
+                name,
+                note,
+                cycle: cycleType,
+                next: formattedNextDate, // 使用计算后的下次执行日期
+                config: JSON.stringify(cycleConfig),
+                session // 添加 session 参数
+            };
+
+            try {
+                const response = await fetch('/api/createCycle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('循环已创建');
+                    window.location.href = '/view/cycle.html';
+                } else {
+                    alert('创建循环失败');
+                }
+            } catch (error) {
+                console.error('Error creating cycle:', error);
+                alert('创建循环失败，请重试');
+            }
+        });
+
+        // 根据选择的循环方式动态生成配置表单
+        document.getElementById('cycleType').addEventListener('change', (e) => {
+            const cycleType = e.target.value;
+            const container = document.getElementById('cycleConfigContainer');
+            container.innerHTML = ''; // 清空之前的配置
+
+            if (cycleType === 'weekly') {
+                container.innerHTML = `
+                    <label for="weeklyDay" class="form-label">选择星期几</label>
+                    <select class="form-select" id="weeklyDay" required>
+                        <option value="0">星期日</option>
+                        <option value="1">星期一</option>
+                        <option value="2">星期二</option>
+                        <option value="3">星期三</option>
+                        <option value="4">星期四</option>
+                        <option value="5">星期五</option>
+                        <option value="6">星期六</option>
+                    </select>
+                `;
+            } else if (cycleType === 'monthly') {
+                container.innerHTML = `
+                    <label for="monthlyDay" class="form-label">选择每月第几天</label>
+                    <input type="number" class="form-control" id="monthlyDay" min="1" max="31" required>
+                `;
+            } else if (cycleType === 'monthly_last') {
+                container.innerHTML = `
+                    <label for="monthlyLastDay" class="form-label">选择每月倒数第几天</label>
+                    <input type="number" class="form-control" id="monthlyLastDay" min="1" max="31" required>
+                `;
+            } else if (cycleType === 'daily') {
+                container.innerHTML = '';
+            }
+        });
+    </script>
+</body>
+</html>

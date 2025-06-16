@@ -622,4 +622,159 @@ router.get('/getCategoryByName/:name', async (req, res) => {
 //     });
 // };
 
+// 创建循环 API
+router.post('/createCycle', async (req, res) => {
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        // 检查 req.body 是否存在
+        if (!req.body) {
+            return res.status(400).json({ success: false, message: '请求体为空' });
+        }
+
+        // 从请求体中获取 session
+        const session = req.body.session;
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const { name, note, cycle, next, config } = req.body;
+
+        if (!name || !cycle || !next) {
+            return res.status(400).json({ success: false, message: '缺少必要字段' });
+        }
+
+        const query = `
+            INSERT INTO cycle (name, note, cycle, next)
+            VALUES (?, ?, ?, ?)
+        `;
+
+        sqliteManager.db.run(query, [name, note || null, JSON.stringify({cycle: cycle, config: config}), next], function(err) {
+            if (err) {
+                console.error('Error creating cycle:', err.message);
+                res.status(500).json({ success: false, message: '创建失败' });
+            } else {
+                res.json({ success: true, message: '循环创建成功' });
+            }
+        });
+    } catch (err) {
+        console.error('Error creating cycle:', err.message);
+        res.status(500).json({ success: false, message: '创建失败' });
+    }
+});
+
+// 获取所有循环 API
+router.get('/getCycles', async (req, res) => {
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const cycles = await sqliteManager.getCycles();
+        res.json({ success: true, cycles });
+    } catch (err) {
+        console.error('Error fetching cycles:', err.message);
+        res.status(500).json({ success: false, message: '获取循环失败' });
+    }
+});
+
+// 更新循环 API
+router.post('/updateCycle', async (req, res) => {
+    const cycleId = req.body.id;
+
+    if (!cycleId) {
+        return res.status(400).json({ success: false, message: '缺少循环 ID' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const { name, note, cycle, next, config } = req.body;
+
+        if (!name || !cycle || !next) {
+            return res.status(400).json({ success: false, message: '缺少必要字段' });
+        }
+
+        const query = `
+            UPDATE cycle
+            SET name = ?, note = ?, cycle = ?, next = ?
+            WHERE id = ?
+        `;
+
+        sqliteManager.db.run(query, [name, note || null, JSON.stringify({cycle: cycle, config: config}), next, cycleId], function(err) {
+            if (err) {
+                console.error('Error updating cycle:', err.message);
+                res.status(500).json({ success: false, message: '更新失败' });
+            } else {
+                res.json({ success: true, message: '循环已更新' });
+            }
+        });
+    } catch (err) {
+        console.error('Error updating cycle:', err.message);
+        res.status(500).json({ success: false, message: '更新失败' });
+    }
+});
+
+// 删除循环 API
+router.post('/deleteCycle', async (req, res) => {
+    const cycleId = req.body.id;
+
+    if (!cycleId) {
+        return res.status(400).json({ success: false, message: '缺少循环 ID' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const query = `
+            DELETE FROM cycle
+            WHERE id = ?
+        `;
+
+        sqliteManager.db.run(query, [cycleId], function(err) {
+            if (err) {
+                console.error('Error deleting cycle:', err.message);
+                res.status(500).json({ success: false, message: '删除失败' });
+            } else {
+                res.json({ success: true, message: '循环已删除' });
+            }
+        });
+    } catch (err) {
+        console.error('Error deleting cycle:', err.message);
+        res.status(500).json({ success: false, message: '删除失败' });
+    }
+});
+
 module.exports = router;

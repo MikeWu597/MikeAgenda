@@ -66,6 +66,19 @@ class SQLiteManager {
             );
         `;
 
+        // 新增：创建 cycle 表
+        const createCycleTableQuery = `
+            CREATE TABLE IF NOT EXISTS cycle (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                note TEXT,
+                archived BOOLEAN DEFAULT 0,
+                done BOOLEAN DEFAULT 0,
+                cycle TEXT NOT NULL,
+                next DATETIME
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -79,7 +92,13 @@ class SQLiteManager {
                                 if (err) {
                                     reject(err);
                                 } else {
-                                    resolve();
+                                    this.db.run(createCycleTableQuery, (err) => {
+                                        if (err) {
+                                            reject(err);
+                                        } else {
+                                            resolve();
+                                        }
+                                    });
                                 }
                             });
                         }
@@ -228,6 +247,22 @@ class SQLiteManager {
                 reject(new Error('Database not initialized'));
             }
             this.db.all('SELECT * FROM category', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有循环
+    async getCycles() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM cycle WHERE archived = 0 AND done = 0', [], (err, rows) => {
                 if (err) {
                     reject(err);
                 } else {
