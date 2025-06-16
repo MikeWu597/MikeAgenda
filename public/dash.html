@@ -73,16 +73,52 @@
         .expanded-menu-btn:hover {
             background-color: #0056b3;
         }
+
+        /* 新增样式：并排容器 */
+        .container-row {
+            display: flex;
+            gap: 0;
+            margin-top: 20px;
+        }
+
+        .column-container {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 0;
+        }
+
+        .column-container:first-child {
+            flex: 8; 
+            border-right: none;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .column-container:last-child {
+            flex: 4; 
+            border-left: none;
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .column-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <div class="container mt-3">
         <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">新页面</div>
-                    <div class="card-body">
-                        <!-- 页面内容稍后添加 -->
+            <div class="col-md-12">
+                <div class="container-row">
+                    <div class="column-container" id="todayPlanContainer">
+                        <div class="column-header">今日计划</div>
+                    </div>
+                    <div class="column-container" id="todoContainer">
+                        <div class="column-header">其他事项</div>
                     </div>
                 </div>
             </div>
@@ -182,6 +218,152 @@
             viewCycleBtn.addEventListener('click', function() {
                 window.location.href = '/view/cycle.html';
             });
+
+            // 新增辅助函数：判断两个日期是否属于同一天
+            function isSameDay(date1, date2) {
+                // 将 date1 转换为 YYYYMMDD 格式
+                const formattedDate1 = date1 ? date1.replace(/-/g, '').split('T')[0] : null;
+                // 将 date2 转换为 YYYYMMDD 格式
+                const formattedDate2 = date2;
+
+                // 比较两个日期
+                return formattedDate1 === formattedDate2;
+            }
+
+            // 新增：存储所有分类的变量
+            let allCategories = [];
+
+            const getSessionFromCookie = () => {
+                const cookies = document.cookie.split('; ');
+                for (const cookie of cookies) {
+                    const [name, value] = cookie.split('=');
+                    if (name === 'session') {
+                        return decodeURIComponent(value);
+                    }
+                }
+                return null;
+            };
+            // 修改：在页面加载时获取所有分类
+            async function fetchCategories() {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const response = await fetch('/api/getCategories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ session })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        allCategories = data.categories; // 存储所有分类
+                    } else if (response.status === 401) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                    } else {
+                        alert(data.message || '加载分类失败');
+                    }
+                } catch (error) {
+                    console.error('Error fetching categories:', error);
+                    alert('加载分类失败，请重试');
+                }
+            }
+
+
+
+            // 修改：更新 getCategoryColor 和 getCategoryName 函数
+            function getCategoryColor(categoryId) {
+                const category = allCategories.find(c => c.id === categoryId);
+                return category ? category.color : '#000'; // 默认黑色
+            }
+
+            function getCategoryName(categoryId) {
+                const category = allCategories.find(c => c.id === categoryId);
+                return category ? category.name : '未知分类'; // 默认名称
+            }
+
+            // 渲染事项列表
+            async function renderItems(items, targetDate) {
+                await fetchCategories();
+                const todayPlanContainer = document.getElementById('todayPlanContainer');
+                const todoContainer = document.getElementById('todoContainer');
+
+                // 清空容器
+                todayPlanContainer.innerHTML = '<div class="column-header">今日计划</div>';
+                todoContainer.innerHTML = '<div class="column-header">其他事项</div>';
+
+                items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-3';
+
+                    // 解析分类信息
+                    const categoryIds = JSON.parse(item.category || '[]');
+                    const categoryBadges = categoryIds.map(id => {
+                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                    }).join('');
+
+                    // 判断事项是否属于当天计划或待办事项
+                    if (item.planned_time && isSameDay(item.planned_time, targetDate)) {
+                        // 左侧（当天计划）：只显示计划时间，不显示截止日期
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <div class="d-flex align-items-center">
+                                    ${categoryBadges}
+                                    <h5 class="ms-2">${item.title}</h5>
+                                </div>
+                                <small>计划时间: ${item.planned_time.replace('T', ' ')}</small>
+                            </div>
+                            ${item.description ? `<div class="card-body"><p>${item.description}</p></div>` : ''}
+                        `;
+                        todayPlanContainer.appendChild(card);
+                    } else if (!item.done && !item.archived) {
+                        // 右侧（待办事项）：只显示截止日期，不显示计划时间
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <div class="d-flex align-items-center">
+                                    ${categoryBadges}
+                                    <h5 class="ms-2">${item.title}</h5>
+                                </div>
+                                ${item.deadline ? `<small>截止日期: ${item.deadline}</small>` : ''}
+                            </div>
+                            ${item.description ? `<div class="card-body"><p>${item.description}</p></div>` : ''}
+                        `;
+                        todoContainer.appendChild(card);
+                    }
+                });
+            }
+
+            // 获取URL中的date参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const dateParam = urlParams.get('date');
+            const currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
+
+            // 格式化日期为YYYYMMDD格式
+            const formattedDate = currentDate.toISOString().split('T')[0].replace(/-/g, '');
+
+            // 获取事项列表
+            async function fetchItems() {
+                try {
+                    const response = await fetch('/api/getItems');
+                    const data = await response.json();
+                    if (data.success) {
+                        await renderItems(data.items, formattedDate);
+                    } else {
+                        alert(data.message || '加载事项失败');
+                    }
+                } catch (error) {
+                    console.error('Error fetching items:', error);
+                    alert('加载事项失败，请重试');
+                }
+            }
+
+            // 页面加载时获取事项
+            fetchItems();
         });
     </script>
 </body>
