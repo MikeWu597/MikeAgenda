@@ -7,10 +7,17 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .floating-btn {
+        /* 新增样式：浮于页脚的菜单栏 */
+        .footer-menu {
             position: fixed;
             bottom: 20px;
-            right: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .footer-menu-btn {
             width: 56px;
             height: 56px;
             background-color: #007bff;
@@ -25,25 +32,29 @@
             transition: all 0.3s ease;
             user-select: none;
         }
-        .floating-btn:hover {
+
+        .footer-menu-btn:hover {
             background-color: #0056b3;
         }
-        .action-buttons {
-            position: fixed;
-            bottom: 86px;
-            right: 20px;
+
+        .expanded-menu {
+            position: absolute;
+            bottom: 86px; /* 原来是66px，向上移动20px */
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            flex-direction: column;
             gap: 10px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
         }
-        .action-buttons.active {
+
+        .expanded-menu.active {
             opacity: 1;
             visibility: visible;
         }
-        .action-btn {
+
+        .expanded-menu-btn {
             width: 56px;
             height: 56px;
             background-color: #007bff;
@@ -58,7 +69,8 @@
             transition: all 0.3s ease;
             user-select: none;
         }
-        .action-btn:hover {
+
+        .expanded-menu-btn:hover {
             background-color: #0056b3;
         }
     </style>
@@ -77,47 +89,70 @@
         </div>
     </div>
 
-    <div class="action-buttons" id="actionButtons">
-        <div class="action-btn" id="createItemBtn">
-            <i class="bi bi-calendar-plus"></i> <!-- 新图标 -->
+    <div class="footer-menu">
+        <div class="footer-menu-btn" id="viewMenuBtn">
+            <i class="bi bi-eye"></i>
         </div>
-        <!-- 新增: 创建分类按钮 -->
-        <div class="action-btn" id="createCategoryBtn">
-            <i class="bi bi-folder-plus"></i>
+        <div class="footer-menu-btn" id="createMenuBtn">
+            <i class="bi bi-plus"></i>
         </div>
-        <!-- 新增: 创建循环按钮 -->
-        <div class="action-btn" id="createCycleBtn">
+    </div>
+
+    <div class="expanded-menu" id="viewExpandedMenu">
+        <div class="expanded-menu-btn" id="viewCategoryBtn">
+            <i class="bi bi-folder"></i>
+        </div>
+        <div class="expanded-menu-btn" id="viewItemBtn">
+            <i class="bi bi-calendar-check"></i>
+        </div>
+        <div class="expanded-menu-btn" id="viewCycleBtn">
             <i class="bi bi-arrow-clockwise"></i>
         </div>
     </div>
 
-    <div class="floating-btn" id="floatingBtn">
-        <i class="bi bi-plus"></i>
+    <div class="expanded-menu" id="createExpandedMenu">
+        <div class="expanded-menu-btn" id="createCategoryBtn">
+            <i class="bi bi-folder-plus"></i>
+        </div>
+        <div class="expanded-menu-btn" id="createItemBtn">
+            <i class="bi bi-calendar-plus"></i>
+        </div>
+        <div class="expanded-menu-btn" id="createCycleBtn">
+            <i class="bi bi-arrow-clockwise"></i>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const floatingBtn = document.getElementById('floatingBtn');
-            const actionButtons = document.getElementById('actionButtons');
-            const createItemBtn = document.getElementById('createItemBtn');
-            // 新增: 获取创建分类按钮
-            const createCategoryBtn = document.getElementById('createCategoryBtn');
-            // 新增: 获取创建循环按钮
-            const createCycleBtn = document.getElementById('createCycleBtn');
+            const viewMenuBtn = document.getElementById('viewMenuBtn');
+            const createMenuBtn = document.getElementById('createMenuBtn');
+            const viewExpandedMenu = document.getElementById('viewExpandedMenu');
+            const createExpandedMenu = document.getElementById('createExpandedMenu');
 
-            // 点击浮动按钮时显示/隐藏操作按钮
-            floatingBtn.addEventListener('click', function() {
-                actionButtons.classList.toggle('active');
+            // 点击查看菜单按钮时显示查看扩展菜单并隐藏新建扩展菜单
+            viewMenuBtn.addEventListener('click', function() {
+                viewExpandedMenu.classList.toggle('active');
+                createExpandedMenu.classList.remove('active');
+                createMenuBtn.classList.remove('active'); // 隐藏新建按钮
             });
 
-            // 点击其他地方时关闭按钮列表
+            // 点击新建菜单按钮时显示新建扩展菜单并隐藏查看扩展菜单
+            createMenuBtn.addEventListener('click', function() {
+                createExpandedMenu.classList.toggle('active');
+                viewExpandedMenu.classList.remove('active');
+                viewMenuBtn.classList.remove('active'); // 隐藏查看按钮
+            });
+
+            // 点击其他地方时关闭扩展菜单
             document.addEventListener('click', function(event) {
-                if (!floatingBtn.contains(event.target) && !actionButtons.contains(event.target)) {
-                    actionButtons.classList.remove('active');
+                if (!viewMenuBtn.contains(event.target) && !viewExpandedMenu.contains(event.target)) {
+                    viewExpandedMenu.classList.remove('active');
+                }
+                if (!createMenuBtn.contains(event.target) && !createExpandedMenu.contains(event.target)) {
+                    createExpandedMenu.classList.remove('active');
                 }
             });
-
             // 点击创建事项按钮时跳转到 item.html
             createItemBtn.addEventListener('click', function() {
                 window.location.href = '/create/item.html';
@@ -131,6 +166,21 @@
             // 新增: 点击创建循环按钮时跳转到 cycle.html
             createCycleBtn.addEventListener('click', function() {
                 window.location.href = '/create/cycle.html';
+            });
+
+            // 新增: 点击查看事项按钮时跳转到 item.html
+            viewItemBtn.addEventListener('click', function() {
+                window.location.href = '/view/item.html';
+            });
+
+            // 新增: 点击查看分类按钮时跳转到 category.html
+            viewCategoryBtn.addEventListener('click', function() {
+                window.location.href = '/view/category.html';
+            });
+
+            // 新增: 点击查看循环按钮时跳转到 cycle.html
+            viewCycleBtn.addEventListener('click', function() {
+                window.location.href = '/view/cycle.html';
             });
         });
     </script>
