@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>已完成事项</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .item-card {
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+        .item-details {
+            display: none;
+        }
+        /* 修改样式：ID 显示区域 */
+        .item-id {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+        /* 新增样式：# 图标 */
+        .item-id-icon {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-right: 0.25rem;
+        }
+        /* 新增样式：旋转动画 */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 2s linear infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    已完成事项
+                </h2>
+                <div id="itemsContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加编辑事项的模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">编辑事项</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editItemId">
+                        <div class="mb-3">
+                            <label for="editTitle" class="form-label">标题</label>
+                            <input type="text" class="form-control" id="editTitle" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">描述</label>
+                            <textarea class="form-control" id="editDescription"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDeadline" class="form-label">截止日期</label>
+                            <input type="date" class="form-control" id="editDeadline" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editPlannedTime" class="form-label">计划时间</label>
+                            <input type="datetime-local" class="form-control" id="editPlannedTime">
+                        </div>
+                        <!-- 新增：分类选择区域 -->
+                        <div class="mb-3">
+                            <label class="form-label">分类</label>
+                            <div id="editCategoryCheckboxes" class="d-flex flex-wrap gap-2">
+                                <!-- 分类复选框将通过 JavaScript 动态加载 -->
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveEdit">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加编辑流程的模态框 -->
+    <div class="modal fade" id="processModal" tabindex="-1" aria-labelledby="processModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="processModalLabel">编辑流程</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="processList" class="list-group">
+                        <!-- 流程项将动态生成在这里 -->
+                    </div>
+                    <button type="button" class="btn btn-secondary mt-3" id="addProcess">添加流程</button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveProcess">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 从 cookie 中获取 session
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
+        // 获取事项列表
+        async function fetchItems() {
+            try {
+                const response = await fetch('/api/getDoneItems');
+                const data = await response.json();
+                if (data.success) {
+                    renderItems(data.items);
+                } else {
+                    alert(data.message || '加载事项失败');
+                }
+            } catch (error) {
+                console.error('Error fetching done items:', error);
+                alert('加载事项失败，请重试');
+            }
+        }
+
+        // 渲染事项列表
+        function renderItems(items) {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = ''; // 清空容器
+
+            items.forEach(item => {
+                // 解析分类信息
+                const categoryIds = JSON.parse(item.category || '[]');
+                const categoryBadges = categoryIds.map(id => {
+                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                }).join('');
+
+                const card = document.createElement('div');
+                card.className = 'card item-card';
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            ${categoryBadges}
+                            <h5 class="ms-2">${item.title}</h5>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            ${item.deadline ? `<i class="bi bi-calendar-date"></i><small>${item.deadline}</small>` : ''}
+                            ${item.planned_time ? `<i class="bi bi-clock"></i><small>${item.planned_time.replace('T', ' ')}</small>` : ''}
+                            <i class="bi bi-hash"></i><small>${item.id}</small>
+                        </div>
+                    </div>
+                    <div class="card-body item-details" style="display: none;">
+                        <div class="d-flex gap-2 mt-3">
+                            <button class="btn btn-primary restore-btn" data-id="${item.id}">恢复</button>
+                            <button class="btn btn-danger delete-btn" data-id="${item.id}">删除</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // 使用事件委托机制绑定点击事件
+            container.addEventListener('click', async (event) => {
+                const target = event.target.closest('.item-card');
+                if (target) {
+                    const details = target.querySelector('.item-details');
+                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                }
+
+                // 绑定恢复按钮点击事件
+                if (event.target.classList.contains('restore-btn')) {
+                    const itemId = event.target.dataset.id;
+
+                    try {
+                        const response = await fetch('/api/markItemAsUndone', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                id: itemId,
+                                session: getSessionFromCookie() // 从 cookie 中获取 session
+                            })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            alert('事项已恢复');
+                            location.reload(); // 刷新页面
+                        } else {
+                            alert(data.message || '恢复失败');
+                        }
+                    } catch (error) {
+                        console.error('Error restoring item:', error);
+                        alert('恢复失败，请重试');
+                    }
+                    event.stopPropagation(); // 阻止事件冒泡
+                }
+
+                // 新增：绑定删除按钮点击事件
+                if (event.target.classList.contains('delete-btn')) {
+                    const itemId = event.target.dataset.id;
+
+                    // 双重确认
+                    if (confirm('确定要删除该事项吗？此操作不可撤销！')) {
+                        try {
+                            const response = await fetch('/api/deleteItem', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    id: itemId,
+                                    session: getSessionFromCookie() // 从 cookie 中获取 session
+                                })
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                alert('事项已删除');
+                                location.reload(); // 刷新页面
+                            } else {
+                                alert(data.message || '删除失败');
+                            }
+                        } catch (error) {
+                            console.error('Error deleting item:', error);
+                            alert('删除失败，请重试');
+                        }
+                    }
+                    event.stopPropagation(); // 阻止事件冒泡
+                }
+            });
+        }
+
+        // 保存流程按钮事件
+        document.getElementById('saveProcess').addEventListener('click', async () => {
+            const itemId = document.getElementById('processModal').dataset.itemId;
+            if (!itemId) {
+                alert('未找到关联的事项ID');
+                return;
+            }
+
+            const rows = document.querySelectorAll('#processList .list-group-item');
+            const processes = Array.from(rows).map(row => {
+                return {
+                    name: row.querySelector('.process-name').value,
+                    note: row.querySelector('.process-note').value,
+                    status: parseInt(row.querySelector('.process-status').value) // 确保状态值为数字
+                };
+            });
+
+            const session = getSessionFromCookie();
+
+            try {
+                const response = await fetch('/api/updateItemMetadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: itemId,
+                        metadata: JSON.stringify(processes),
+                        session
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('流程已保存');
+                    location.reload(); // 刷新页面
+                } else {
+                    alert(data.message || '保存失败');
+                }
+            } catch (error) {
+                console.error('Error saving process:', error);
+                alert('保存失败，请重试');
+            }
+        });
+
+        // 保存编辑事项
+        document.getElementById('saveEdit').addEventListener('click', async () => {
+            const itemId = document.getElementById('editItemId').value;
+            const title = document.getElementById('editTitle').value;
+            const description = document.getElementById('editDescription').value;
+            const deadline = document.getElementById('editDeadline').value;
+            const planned_time = document.getElementById('editPlannedTime').value;
+
+            // 获取选中的分类 ID
+            const selectedCategories = Array.from(document.querySelectorAll('#editCategoryCheckboxes input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
+
+            try {
+                const response = await fetch('/api/updateItem', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: itemId,
+                        title,
+                        description,
+                        deadline,
+                        planned_time,
+                        category: selectedCategories, // 新增：发送选中的分类 ID
+                        session: getSessionFromCookie() // 从 cookie 中获取 session
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('事项更新成功');
+                    location.reload(); // 刷新页面
+                } else {
+                    alert(data.message || '更新失败');
+                }
+            } catch (error) {
+                console.error('Error updating item:', error);
+                alert('更新失败，请重试');
+            }
+        });
+
+        // 页面加载时初始化拖动排序功能
+        document.addEventListener('DOMContentLoaded', () => {
+            initDragAndDrop();
+        });
+
+        // 为添加流程按钮绑定点击事件
+        document.getElementById('addProcess').addEventListener('click', () => {
+            addProcessRow(); // 调用添加流程行函数
+        });
+
+        // 添加流程行
+        function addProcessRow(process = {}) {
+            const processList = document.getElementById('processList');
+            const row = document.createElement('div');
+            row.className = 'list-group-item';
+            row.draggable = true; // 启用拖动功能
+            row.innerHTML = `
+                <div class="d-flex align-items-center mb-2">
+                    <span class="me-2"><i class="bi bi-grip-vertical"></i></span>
+                    <input type="text" class="form-control process-name" placeholder="流程名称" value="${process.name || ''}">
+                </div>
+                <div class="mb-2">
+                    <textarea class="form-control process-note" rows="3" placeholder="备注">${process.note || ''}</textarea>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <select class="form-select process-status me-2">
+                        <option value="0" ${process.status === 0 ? 'selected' : ''}>未开始</option>
+                        <option value="1" ${process.status === 1 ? 'selected' : ''}>进行中</option>
+                        <option value="2" ${process.status === 2 ? 'selected' : ''}>已完成</option>
+                    </select>
+                    <button class="btn btn-danger remove-process">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            `;
+            processList.appendChild(row);
+
+            // 绑定删除按钮事件
+            row.querySelector('.remove-process').addEventListener('click', () => {
+                row.remove();
+            });
+
+            // 绑定拖动事件
+            row.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', e.target.id);
+                e.target.classList.add('dragging');
+            });
+
+            row.addEventListener('dragend', (e) => {
+                e.target.classList.remove('dragging');
+            });
+        }
+
+        // 初始化拖动排序功能
+        function initDragAndDrop() {
+            const processList = document.getElementById('processList');
+            let draggedItem = null;
+
+            processList.addEventListener('dragstart', (e) => {
+                draggedItem = e.target;
+            });
+
+            processList.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const afterElement = getDragAfterElement(processList, e.clientY);
+                if (afterElement == null) {
+                    processList.appendChild(draggedItem);
+                } else {
+                    processList.insertBefore(draggedItem, afterElement);
+                }
+            });
+        }
+
+        // 获取拖动目标元素
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.list-group-item:not(.dragging)')];
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // 新增：存储所有分类的变量
+        let allCategories = [];
+
+        // 修改：在页面加载时获取所有分类
+        async function fetchCategories() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    allCategories = data.categories; // 存储所有分类
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        }
+
+        // 修改：在页面加载时调用 fetchCategories 和 fetchItems
+        document.addEventListener('DOMContentLoaded', async () => {
+            await fetchCategories();
+            fetchItems();
+        });
+
+        // 修改：更新 getCategoryColor 和 getCategoryName 函数
+        function getCategoryColor(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.color : '#000'; // 默认黑色
+        }
+
+        function getCategoryName(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.name : '未知分类'; // 默认名称
+        }
+
+        // 新增：获取分类复选框的函数
+        function getCategoryCheckboxes(categories) {
+            const checkboxesContainer = document.getElementById('editCategoryCheckboxes');
+            checkboxesContainer.innerHTML = ''; // 清空容器
+
+            allCategories.forEach(category => {
+                const div = document.createElement('div');
+                div.className = 'form-check';
+                div.innerHTML = `
+                    <input class="form-check-input" type="checkbox" value="${category.id}" id="edit-category-${category.id}">
+                    <label class="form-check-label" for="edit-category-${category.id}">
+                        ${category.name}
+                    </label>
+                `;
+                checkboxesContainer.appendChild(div);
+
+                // 如果该分类已经在事项的分类中，则选中复选框
+                if (categories.includes(category.id)) {
+                    div.querySelector('input').checked = true;
+                }
+            });
+        }
+    </script>
+</body>
+</html>

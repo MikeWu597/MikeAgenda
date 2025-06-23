@@ -303,6 +303,30 @@ class SQLiteManager {
             });
         });
     }
+
+    // 新增：将事项标记为未完成
+    async markItemAsUndone(itemId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                UPDATE items
+                SET done = 0
+                WHERE id = ?
+            `;
+
+            this.db.run(query, [itemId], function(err) {
+                if (err) {
+                    console.error('Error marking item as undone:', err.message);
+                    reject({ success: false, message: '恢复失败' });
+                } else {
+                    resolve({ success: true, message: '事项已恢复为未完成' });
+                }
+            });
+        });
+    }
 }
 
 module.exports = SQLiteManager;

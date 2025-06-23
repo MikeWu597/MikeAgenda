@@ -221,6 +221,44 @@ router.post('/markItemAsDone', async (req, res) => {
     }
 });
 
+// 标记事项为未完成 API
+router.post('/markItemAsUndone', async (req, res) => {
+    // 检查 req.body 是否存在
+    if (!req.body) {
+        return res.status(400).json({ success: false, message: '请求体为空' });
+    }
+
+    // 从请求体中获取 session 和事项 ID
+    const session = req.body.session;
+    const itemId = req.body.id;
+
+    if (!session || !itemId) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 调用 SQLiteManager 的 markItemAsUndone 方法
+        const result = await sqliteManager.markItemAsUndone(itemId);
+
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, message: '事项已恢复为未完成' });
+    } catch (err) {
+        console.error('Error marking item as undone:', err.message);
+        res.status(500).json({ success: false, message: '恢复失败' });
+    }
+});
+
 // 获取事项列表 API
 router.get('/getItems', async (req, res) => {
     try {
