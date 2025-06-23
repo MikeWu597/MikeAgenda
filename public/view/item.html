@@ -41,10 +41,16 @@
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <h2 class="mb-4">
-                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    所有事项
+                    <div class="d-flex align-items-center justify-content-between">
+                        <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                        所有事项
+                        <!-- 新增：跳转到已完成事项的按钮 -->
+                        <button class="btn btn-outline-secondary ms-auto" onclick="window.location.href='item_done.html'">
+                            已完成
+                        </button>
+                    </div>
                 </h2>
                 <div id="itemsContainer"></div>
             </div>
