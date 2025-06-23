@@ -235,6 +235,20 @@ router.get('/getItems', async (req, res) => {
     }
 });
 
+// 获取已完成事项列表 API
+router.get('/getDoneItems', async (req, res) => {
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const doneItems = await sqliteManager.getDoneItems();
+        res.json({ success: true, items: doneItems });
+    } catch (err) {
+        console.error('Error fetching done items:', err.message);
+        res.status(500).json({ success: false, message: '获取已完成事项失败' });
+    }
+});
+
 // 删除事项 API
 router.post('/deleteItem', async (req, res) => {
     // 检查 req.body 是否存在

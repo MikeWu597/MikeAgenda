@@ -287,6 +287,22 @@ class SQLiteManager {
             });
         });
     }
+
+    // 新增：获取已完成的事项列表
+    async getDoneItems() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM items WHERE done = 1 AND archived = 0', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
 }
 
 module.exports = SQLiteManager;
