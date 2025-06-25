@@ -105,7 +105,7 @@
             e.preventDefault();
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
-            const dueDate = document.getElementById('dueDate').value;
+            const deadline = document.getElementById('dueDate').value;
             const plannedTime = document.getElementById('plannedTime').value;
             // 修改: 获取选中的分类 ID
             const selectedCategories = Array.from(document.querySelectorAll('#categoryCheckboxes input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
@@ -122,7 +122,7 @@
             fetch('/api/createItem', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, description, dueDate, plannedTime, category: selectedCategories, session: sessionValue })
+                body: JSON.stringify({ title, description, deadline, plannedTime, category: selectedCategories, session: sessionValue })
             })
             .then(response => {
                 if (response.status === 401) {
