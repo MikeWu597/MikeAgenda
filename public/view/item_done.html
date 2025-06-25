@@ -134,7 +134,13 @@
         // 获取事项列表
         async function fetchItems() {
             try {
-                const response = await fetch('/api/getDoneItems');
+                const response = await fetch('/api/getDoneItems', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': getSessionFromCookie() // 添加 session 参数
+                    }
+                });
                 const data = await response.json();
                 if (data.success) {
                     renderItems(data.items);

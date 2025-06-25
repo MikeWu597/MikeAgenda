@@ -265,6 +265,18 @@ router.get('/getItems', async (req, res) => {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
 
+        // 从请求头中获取 session
+        const session = req.headers['session'];
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
         const items = await sqliteManager.getItems();
         res.json({ success: true, items });
     } catch (err) {
@@ -278,6 +290,18 @@ router.get('/getDoneItems', async (req, res) => {
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 从请求头中获取 session
+        const session = req.headers['session'];
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
 
         const doneItems = await sqliteManager.getDoneItems();
         res.json({ success: true, items: doneItems });
@@ -630,9 +654,21 @@ router.get('/getCategoryByName/:name', async (req, res) => {
         return res.status(400).json({ success: false, message: '缺少分类名称' });
     }
 
+    // 新增：从请求头中获取 session 并验证
+    const session = req.headers['session'];
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 验证 session 是否有效
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
 
         const query = `
             SELECT * FROM category WHERE name = ?
@@ -654,25 +690,6 @@ router.get('/getCategoryByName/:name', async (req, res) => {
     }
 });
 
-// 新增：根据分类 ID 获取分类信息
-// sqliteManager.getCategoryById = async (id) => {
-//     return new Promise((resolve, reject) => {
-//         if (!this.db) {
-//             reject(new Error('Database not initialized'));
-//         }
-//         const query = `
-//             SELECT * FROM category WHERE id = ?
-//         `;
-//         this.db.get(query, [id], (err, row) => {
-
-//             if (err) {
-//                 reject(err);
-//             } else {
-//                 resolve(row);
-//             }
-//         });
-//     });
-// };
 
 // 创建循环 API
 router.post('/createCycle', async (req, res) => {
@@ -727,6 +744,18 @@ router.get('/getCycles', async (req, res) => {
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 新增：从请求头中获取 session 并验证
+        const session = req.headers['session'];
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
+
+        // 验证 session 是否有效
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
 
         const cycles = await sqliteManager.getCycles();
         res.json({ success: true, cycles });
@@ -876,7 +905,6 @@ router.post('/deleteCycle', async (req, res) => {
 
 // 新增：判断日期是否符合循环配置
 function isCycleMatch(cycleConfig, date) {
-    console.log(cycleConfig);
     const { cycle, config } = JSON.parse(cycleConfig);
 
     // 修改：正确解析日期
@@ -907,6 +935,18 @@ router.post('/getTodayCycles', async (req, res) => {
     try {
         // 确保 SQLiteManager 已初始化
         await sqliteManager.init();
+
+        // 从请求头中获取 session
+        const session = req.headers['session'];
+
+        if (!session) {
+            return res.status(401).json({ success: false, message: '未授权' });
+        }
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
 
         // 检查 req.body 是否存在
         if (!req.body) {

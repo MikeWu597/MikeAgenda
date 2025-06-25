@@ -96,7 +96,23 @@
         // 获取循环列表
         async function fetchCycles() {
             try {
-                const response = await fetch('/api/getCycles');
+                // 新增：从 cookie 中获取 session
+                const session = document.cookie.split('; ').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+
+                const response = await fetch('/api/getCycles', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': sessionValue // 添加 session 参数
+                    }
+                });
                 const data = await response.json();
                 if (data.success) {
                     renderCycles(data.cycles);

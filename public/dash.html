@@ -613,11 +613,16 @@
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             const day = String(currentDate.getDate()).padStart(2, '0');
 
-
             // 获取事项列表
             async function fetchItems() {
                 try {
-                    const response = await fetch('/api/getItems');
+                    const response = await fetch('/api/getItems', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'session': getSessionFromCookie() // 添加 session 参数
+                        }
+                    });
                     const data = await response.json();
                     if (data.success) {
                         await renderItems(data.items, formattedDate);
@@ -627,6 +632,30 @@
                 } catch (error) {
                     console.error('Error fetching items:', error);
                     alert('加载事项失败，请重试');
+                }
+            }
+
+            // 获取已完成事项列表
+            async function fetchTodayCycles(date) {
+                try {
+                    const response = await fetch('/api/getTodayCycles', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'session': getSessionFromCookie() // 添加 session 参数
+                        },
+                        body: JSON.stringify({ date })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        renderCycles(data.cycles);
+                    } else {
+                        console.error(data.message || '加载循环事项失败');
+                    }
+                } catch (error) {
+                    console.error('Error fetching today\'s cycles:', error);
+                    alert('加载循环事项失败，请重试');
                 }
             }
 
