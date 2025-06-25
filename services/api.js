@@ -829,4 +829,75 @@ router.post('/deleteCycle', async (req, res) => {
     }
 });
 
+// 新增：判断日期是否符合循环配置
+function isCycleMatch(cycleConfig, date) {
+    console.log(cycleConfig);
+    const { cycle, config } = JSON.parse(cycleConfig);
+
+    // 修改：正确解析日期
+    const year = parseInt(date.slice(0, 4), 10);
+    const month = parseInt(date.slice(4, 6), 10);
+    const day = parseInt(date.slice(6, 8), 10);
+
+    switch (cycle) {
+        case 'daily':
+            return true; // 每日循环，默认匹配
+        case 'weekly':
+            const weekday = new Date(year, month - 1, day).getDay(); // 获取星期几（0-6）
+            const parsedConfig = JSON.parse(config); // 解析 config 字符串
+            const daysOfWeek = parsedConfig.day.split(',').map(Number); // 支持多个星期几
+            return daysOfWeek.includes(weekday);
+        case 'monthly':
+            return day === Number(JSON.parse(config).day);
+        case 'monthly_last': // 新增：支持每月倒数第几天
+            const lastDayOfMonth = new Date(year, month, 0).getDate(); // 当月最后一天
+            return day === Number(lastDayOfMonth - JSON.parse(config).day + 1);
+        default:
+            return false;
+    }
+}
+
+// 修改：获取当天需要执行的循环事项 API
+router.post('/getTodayCycles', async (req, res) => {
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        // 检查 req.body 是否存在
+        if (!req.body) {
+            return res.status(400).json({ success: false, message: '请求体为空' });
+        }
+
+        // 从请求体中获取日期
+        const date = req.body.date;
+
+        if (!date || !/^\d{8}$/.test(date)) {
+            return res.status(400).json({ success: false, message: '无效的日期格式，应为 YYYYMMDD' });
+        }
+
+        // 将日期转换为 SQL 可用的格式
+        const formattedDate = `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T00:00:00`;
+        
+        // 查询当天需要执行的循环事项
+        const query = `
+            SELECT * FROM cycle 
+            WHERE next <= ? AND archived = 0 AND done = 0
+        `;
+
+        sqliteManager.db.all(query, [formattedDate], (err, rows) => {
+            if (err) {
+                console.error('Error fetching today\'s cycles:', err.message);
+                res.status(500).json({ success: false, message: '获取循环事项失败' });
+            } else {
+                // 过滤出符合条件的循环事项
+                const filteredCycles = rows.filter(row => isCycleMatch(row.cycle, date));
+                res.json({ success: true, cycles: filteredCycles });
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching today\'s cycles:', err.message);
+        res.status(500).json({ success: false, message: '获取循环事项失败' });
+    }
+});
+
 module.exports = router;

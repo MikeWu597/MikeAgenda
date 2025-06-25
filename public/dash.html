@@ -223,11 +223,18 @@
         <div class="row justify-content-center">
             <div class="col-md-12">
                 <div class="container-row">
-                    <div class="column-container" id="todayPlanContainer">
-                        <div class="column-header" id="dayTitle">今日计划</div>
-                        <!-- 新增时间轴容器 -->
-                        <div class="timeline-container" id="timelineContainer"></div>
+                    <div class="column-container" id="leftContainer">
+                        <div id="todayPlanContainer">
+                            <div class="column-header" id="dayTitle">今日计划</div>
+                            <!-- 新增时间轴容器 -->
+                            <div class="timeline-container" id="timelineContainer"></div>
+                        </div>
+                        <div id="cycleContainerWrapper">
+                            <div class="column-header mt-4" id="cycleTitle">循环</div>
+                            <div class="timeline-container" id="cycleContainer"></div>
+                        </div>
                     </div>
+                    
                     <div class="column-container" id="todoContainer">
                         <div class="column-header">其他事项</div>
                     </div>
@@ -437,7 +444,61 @@
                 }
             }
 
+            // 新增：获取今日循环并渲染
+            async function fetchTodayCycles(date) {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
 
+                    const response = await fetch('/api/getTodayCycles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date, session })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        renderCycles(data.cycles);
+                    } else {
+                        console.error(data.message || '加载循环事项失败');
+                    }
+                } catch (error) {
+                    console.error('Error fetching today\'s cycles:', error);
+                    alert('加载循环事项失败，请重试');
+                }
+            }
+
+            // 新增：渲染循环事项
+            function renderCycles(cycles) {
+                const cycleContainer = document.getElementById('cycleContainer');
+                cycleContainer.innerHTML = ''; // 清空容器
+
+                cycles.forEach(cycle => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-3';
+
+                    // 解析分类信息
+                    const categoryIds = JSON.parse(cycle.category || '[]');
+                    const categoryBadges = categoryIds.map(id => {
+                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                    }).join('');
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                ${categoryBadges}
+                                <h5 class="ms-2">${cycle.name}</h5>
+                            </div>
+                            ${cycle.note ? `<p>${cycle.note}</p>` : ''}
+                        </div>
+                    `;
+                    cycleContainer.appendChild(card);
+                });
+            }
 
             // 修改：更新 getCategoryColor 和 getCategoryName 函数
             function getCategoryColor(categoryId) {
@@ -530,6 +591,13 @@
                 });
             }
 
+            // 修改：在页面加载时获取事项和循环
+            async function initializePage() {
+                await fetchCategories(); // 获取分类
+                await fetchItems();       // 获取事项
+                await fetchTodayCycles(formattedDate); // 获取今日循环
+            }
+
             // 获取URL中的date参数
             const urlParams = new URLSearchParams(window.location.search);
             const dateParam = urlParams.get('date');
@@ -567,8 +635,7 @@
                 }
             }
 
-            // 页面加载时获取事项
-            fetchItems();
+            initializePage();
         });
     </script>
 </body>
