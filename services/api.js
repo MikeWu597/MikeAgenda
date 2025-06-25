@@ -786,6 +786,51 @@ router.post('/updateCycle', async (req, res) => {
     }
 });
 
+// 新增：更新循环下次执行时间 API
+router.post('/updateCycleNextTime', async (req, res) => {
+    const cycleId = req.body.id;
+    const nextTime = req.body.nexttime;
+
+    if (!cycleId || !nextTime) {
+        return res.status(400).json({ success: false, message: '缺少必要字段' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const query = `
+            UPDATE cycle
+            SET next = ?
+            WHERE id = ?
+        `;
+
+        sqliteManager.db.run(query, [nextTime, cycleId], function(err) {
+            if (err) {
+                console.error('Error updating cycle next time:', err.message);
+                res.status(500).json({ success: false, message: '更新失败' });
+            } else {
+                res.json({ success: true, message: '循环下次执行时间已更新' });
+            }
+        });
+    } catch (err) {
+        console.error('Error updating cycle next time:', err.message);
+        res.status(500).json({ success: false, message: '更新失败' });
+    }
+});
+
 // 删除循环 API
 router.post('/deleteCycle', async (req, res) => {
     const cycleId = req.body.id;

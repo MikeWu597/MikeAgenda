@@ -152,6 +152,8 @@
                         <div class="d-flex gap-2 mt-3">
                             <button class="btn btn-outline-primary edit-btn" data-id="${cycle.id}">编辑</button>
                             <button class="btn btn-danger delete-btn" data-id="${cycle.id}">删除</button>
+                            <!-- 新增：完成本次按钮 -->
+                            <button class="btn btn-success complete-current-btn" data-id="${cycle.id}">完成本次</button>
                         </div>
                     </div>
                 `;
@@ -220,6 +222,48 @@
                     event.stopPropagation(); // 阻止事件冒泡
                 }
             });
+            
+            // 新增：绑定完成本次按钮的点击事件
+            document.getElementById('cyclesContainer').addEventListener('click', async (event) => {
+                if (event.target.classList.contains('complete-current-btn')) {
+                    const cycleId = event.target.dataset.id;
+                    const cycle = cycles.find(c => c.id === parseInt(cycleId));
+                    if (!cycle) {
+                        alert('未找到对应的循环');
+                        return;
+                    }
+
+                    const cycleConfig = JSON.parse(cycle.cycle);
+                    const currentNextDate = new Date(cycle.next);
+                    currentNextDate.setDate(currentNextDate.getDate() + 1);
+                    // 计算下下次执行日期
+                    const nextNextDate = calculateDoneDate(cycleConfig.cycle, JSON.parse(cycleConfig.config || '{}'), currentNextDate);
+
+                    try {
+                        const response = await fetch('/api/updateCycleNextTime', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                id: cycleId,
+                                nexttime: nextNextDate,
+                                session: getSessionFromCookie()
+                            })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            alert('已完成本次循环，下次执行时间已更新');
+                            location.reload(); // 刷新页面
+                        } else {
+                            alert(data.message || '更新失败');
+                        }
+                    } catch (error) {
+                        console.error('Error updating cycle next time:', error);
+                        alert('更新失败，请重试');
+                    }
+                }
+            });
         }
 
         // 初始化循环配置
@@ -261,6 +305,45 @@
             const config = {}; // 默认为空配置
             initCycleConfig(cycleType, config);
         });
+
+        // 新增：判断日期是否符合循环配置
+        function isCycleMatch(cycle, config, date) {
+            console.log(date);
+            // 修改：正确解析日期
+            const year = parseInt(date.slice(0, 4), 10);
+            const month = parseInt(date.slice(4, 6), 10);
+            const day = parseInt(date.slice(6, 8), 10);
+
+            switch (cycle) {
+                case 'daily':
+                    return true; // 每日循环，默认匹配
+                case 'weekly':
+                    const weekday = new Date(year, month - 1, day).getDay(); // 获取星期几（0-6）
+                    const parsedConfig = JSON.parse(config); // 解析 config 字符串
+                    const daysOfWeek = parsedConfig.day.split(',').map(Number); // 支持多个星期几
+                    return daysOfWeek.includes(weekday);
+                case 'monthly':
+                    return day === Number(JSON.parse(config).day);
+                case 'monthly_last': // 新增：支持每月倒数第几天
+                    const lastDayOfMonth = new Date(year, month, 0).getDate(); // 当月最后一天
+                    return day === Number(lastDayOfMonth - JSON.parse(config).day + 1);
+                default:
+                    return false;
+            }
+        }
+        // 计算当前执行日期后的下次执行日期
+        function calculateDoneDate(cycleType, config, currentNextDate) {
+            let nextDate = new Date(currentNextDate); // 从当前显示的下次执行日期开始
+            nextDate.setDate(nextDate.getDate() + 1);
+            let dayCount = 0;
+            //nextDate格式：YYYYMMDD 
+            while (!isCycleMatch(cycleType, JSON.stringify(config), nextDate.toISOString().split('T')[0].replace(/-/g, '')) && dayCount <= 365) {
+                nextDate.setDate(nextDate.getDate() + 1);
+                dayCount++;
+            }
+            // 格式化为 ISO 格式（时间部分固定为 00:00:00）
+            return nextDate ? `${nextDate.toISOString().split('T')[0]}T00:00:00` : null;
+        }
 
         // 计算下次执行日期
         function calculateNextDate(cycleType, config) {
