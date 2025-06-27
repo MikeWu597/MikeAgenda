@@ -2,6 +2,28 @@ const express = require('express');
 const router = express.Router();
 const SQLiteManager = require('./SQLiteManager'); // 引入 SQLiteManager
 const sqliteManager = new SQLiteManager(); // 实例化 SQLiteManager
+const os = require('os'); // 引入 os 模块
+
+
+// 新增：获取系统状态 API
+router.get('/getSystemStatus', async (req, res) => {
+    try {
+        const memoryUsage = Math.round((os.totalmem() - os.freemem()) / 1024 / 1024); // 内存占用（MB）
+        const systemTime = new Date().toLocaleString(); // 系统时钟
+        const uptime = Math.floor(os.uptime()); // 运行时间（秒）
+
+        const status = {
+            memoryUsage,
+            systemTime,
+            uptime
+        };
+
+        res.json({ success: true, status });
+    } catch (err) {
+        console.error('Error fetching system status:', err.message);
+        res.status(500).json({ success: false, message: '获取系统状态失败' });
+    }
+});
 
 // 创建事项 API
 router.post('/createItem', async (req, res) => {

@@ -254,7 +254,7 @@
 
     <!-- 新增: 页脚小字链接 -->
     <div style="text-align: center; margin-top: 10px; height:120px; font-size: 0.8rem; color: #6c757d;">
-        <a href="/about.html" class="text-decoration-none">关于</a>
+        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a>
     </div>
 
     <div class="expanded-menu" id="viewExpandedMenu">
@@ -552,12 +552,16 @@
                             <div class="d-flex flex-column align-items-center">
                                 <strong>${formattedTime}</strong>
                             </div>
-                            <div class="d-flex align-items-center">
+                        </div>
+                        ${item.description ? `
+                            <div class="d-flex align-items-center" style="margin-left:1rem;margin-top:1rem">
                                 ${categoryBadges}
                                 <h5 class="ms-2">${item.title}</h5>
-                            </div>
-                        </div>
-                        ${item.description ? `<div class="card-body"><p>${item.description}</p></div>` : ''}
+                            </div><div class="card-body"><p>${item.description}</p></div>` :   `
+                            <div class="d-flex align-items-center" style="margin-left:1rem;margin-top:1rem">
+                                ${categoryBadges}
+                                <h5 class="ms-2">${item.title}</h5>
+                            </div>`}
                     `;
                     todayPlanContainer.appendChild(card);
 
