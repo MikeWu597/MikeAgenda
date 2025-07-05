@@ -358,7 +358,7 @@
             calendarDiv.innerHTML = '';
             
             // Add day names
-            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const daysOfWeek = ['日', '一', '二', '三', '四', '五', '六'];
             daysOfWeek.forEach(day => {
                 const div = document.createElement('div');
                 div.className = 'day-name';
@@ -386,6 +386,18 @@
                 }
                 calendarDiv.appendChild(div);
             }
+
+            // 修改：放大日历字体
+            const calendarStyle = document.createElement('style');
+            calendarStyle.textContent = `
+                #calendar {
+                    font-size: 20px; /* 放大字体 */
+                }
+                .day-name {
+                    font-size: 20px; /* 放大星期字体 */
+                }
+            `;
+            document.head.appendChild(calendarStyle);
         }
 
         document.addEventListener('DOMContentLoaded', function() {
