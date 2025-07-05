@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程表</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .table td, .table th {
+            vertical-align: middle;
+        }
+
+        .course-block {
+            color: #fff;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #scheduleContainer {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+
+        .day-column {
+            flex: 1;
+            border: 1px solid #ddd;
+            padding: 10px;
+            min-width: 120px;
+        }
+
+        .course-item {
+            background-color: #007bff;
+            color: #fff;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- 使用 canvas 展示课程表 -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-12">
+                <h2 class="mb-4">
+                    <a href="/dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    课程表
+                </h2>
+                <button class="btn btn-primary mb-3" id="addCourseBtn">添加课程</button>
+                <canvas id="scheduleCanvas" width="1400" height="1200" style="border:1px solid #ccc;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加课程的模态框 -->
+    <div class="modal fade" id="courseModal" tabindex="-1" aria-labelledby="courseModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="courseModalLabel">添加/编辑课程</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="courseForm">
+                        <input type="hidden" id="courseId">
+                        <div class="mb-3">
+                            <label for="courseCode" class="form-label">课程代码</label>
+                            <input type="text" class="form-control" id="courseCode" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseColor" class="form-label">课程颜色</label>
+                            <input type="color" class="form-control" id="courseColor" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseName" class="form-label">课程名称</label>
+                            <input type="text" class="form-control" id="courseName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseVenue" class="form-label">授课地点</label>
+                            <input type="text" class="form-control" id="courseVenue" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="startTime" class="form-label">开始时间</label>
+                            <input type="time" class="form-control" id="startTime" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endTime" class="form-label">结束时间</label>
+                            <input type="time" class="form-control" id="endTime" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="instructorName" class="form-label">授课教师</label>
+                            <input type="text" class="form-control" id="instructorName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="courseDay" class="form-label">上课星期</label>
+                            <select class="form-select" id="courseDay" required>
+                                <option value="">选择星期</option>
+                                <option value="0">周日</option>
+                                <option value="1">周一</option>
+                                <option value="2">周二</option>
+                                <option value="3">周三</option>
+                                <option value="4">周四</option>
+                                <option value="5">周五</option>
+                                <option value="6">周六</option>
+                            </select>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="isActive">
+                            <label class="form-check-label" for="isActive">是否启用</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveCourse">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('scheduleCanvas');
+            const ctx = canvas.getContext('2d');
+            const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+            const hours = 24;
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const columnWidth = canvasWidth / 7;
+            const rowHeight = (canvasHeight / hours) * 2; // 行高度扩大一倍
+            const newCanvasHeight = rowHeight * hours; // 重新计算画布高度
+            canvas.height = newCanvasHeight; // 设置新的画布高度
+
+            // 绘制表格
+            function drawGrid() {
+                ctx.clearRect(0, 0, canvasWidth, newCanvasHeight);
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                const timeColumnWidth = 50; // 时间列宽度
+                const adjustedCanvasWidth = canvasWidth - timeColumnWidth; // 调整表格宽度
+                const adjustedColumnWidth = adjustedCanvasWidth / 7;
+
+                // 绘制时间列
+                for (let i = 0; i < hours; i++) {
+                    ctx.fillStyle = '#ffffff'; // 设置为白色背景
+                    ctx.fillRect(0, i * rowHeight, timeColumnWidth, rowHeight);
+                    ctx.strokeStyle = '#ccc';
+                    ctx.strokeRect(0, i * rowHeight, timeColumnWidth, rowHeight);
+
+                    ctx.fillStyle = '#000';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${i.toString().padStart(2, '0')}:00`, timeColumnWidth / 2, i * rowHeight + rowHeight / 2);
+                }
+
+                // 绘制列
+                for (let i = 0; i < 7; i++) {
+                    ctx.fillStyle = '#f0f0f0';
+                    ctx.fillRect(timeColumnWidth + i * adjustedColumnWidth, 0, adjustedColumnWidth, newCanvasHeight);
+                    ctx.strokeStyle = '#ccc';
+                    ctx.strokeRect(timeColumnWidth + i * adjustedColumnWidth, 0, adjustedColumnWidth, newCanvasHeight);
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(days[i], timeColumnWidth + i * adjustedColumnWidth + adjustedColumnWidth / 2, 10);
+                }
+
+                // 绘制行
+                for (let i = 0; i < hours; i++) {
+                    ctx.strokeStyle = '#ccc';
+                    ctx.beginPath();
+                    ctx.moveTo(timeColumnWidth, i * rowHeight);
+                    ctx.lineTo(canvasWidth, i * rowHeight);
+                    ctx.stroke();
+                }
+            }
+
+            // 渲染课程
+            function renderCourses(courses) {
+                const timeColumnWidth = 50; // 与时间列宽度保持一致
+                const adjustedCanvasWidth = canvasWidth - timeColumnWidth;
+                const adjustedColumnWidth = adjustedCanvasWidth / 7;
+
+                courses.forEach(course => {
+                    const startHour = parseInt(course.start_time.split(':')[0], 10);
+                    const startMinute = parseInt(course.start_time.split(':')[1], 10);
+                    const endHour = parseInt(course.end_time.split(':')[0], 10);
+                    const endMinute = parseInt(course.end_time.split(':')[1], 10);
+
+                    const dayIndex = course.day; // 使用 day 字段表示周几
+                    const startY = (startHour + startMinute / 60) * rowHeight;
+                    const endY = (endHour + endMinute / 60) * rowHeight;
+                    const height = endY - startY;
+
+                    ctx.fillStyle = `${course.course_color}4D`; // 设置为半透明（30% 不透明度）
+                    ctx.fillRect(timeColumnWidth + dayIndex * adjustedColumnWidth, startY, adjustedColumnWidth, height);
+
+                    ctx.fillStyle = '#000';
+                    ctx.font = 'bold 12px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'top';
+                    ctx.fillText(course.course_code, timeColumnWidth + dayIndex * adjustedColumnWidth + 5, startY + 5); // 第一行：课程代码
+
+                    ctx.font = '12px Arial';
+                    ctx.fillText(course.course_name, timeColumnWidth + dayIndex * adjustedColumnWidth + 5, startY + 25); // 第二行：课程名称
+
+                    ctx.fillText(course.venue, timeColumnWidth + dayIndex * adjustedColumnWidth + 5, startY + 45); // 第三行：地点
+
+                    // 添加点击监听器
+                    canvas.addEventListener('click', (event) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const x = event.clientX - rect.left;
+                        const y = event.clientY - rect.top;
+
+                        if (
+                            x >= timeColumnWidth + dayIndex * adjustedColumnWidth &&
+                            x <= timeColumnWidth + (dayIndex + 1) * adjustedColumnWidth &&
+                            y >= startY &&
+                            y <= endY
+                        ) {
+                            openEditModal(course);
+                        }
+                    });
+                });
+            }
+
+            // 打开编辑模态框
+            function openEditModal(course) {
+                document.getElementById('courseId').value = course.id;
+                document.getElementById('courseCode').value = course.course_code;
+                document.getElementById('courseColor').value = course.course_color;
+                document.getElementById('courseName').value = course.course_name;
+                document.getElementById('courseVenue').value = course.venue;
+                document.getElementById('startTime').value = course.start_time;
+                document.getElementById('endTime').value = course.end_time;
+                document.getElementById('instructorName').value = course.instructor_name;
+                document.getElementById('isActive').checked = course.is_active;
+                document.getElementById('courseDay').value = course.day;
+
+                const modal = new bootstrap.Modal(document.getElementById('courseModal'));
+                modal.show();
+
+                // 添加删除按钮的点击事件
+                document.getElementById('deleteCourse').onclick = async () => {
+                    if (confirm('确定要删除该课程吗？')) {
+                        await deleteCourse(course.id);
+                    }
+                };
+            }
+
+            // 删除课程
+            async function deleteCourse(courseId) {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const response = await fetch('/api/deleteCourse', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ id: courseId, session })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('课程已删除');
+                        location.reload();
+                    } else {
+                        alert(data.message || '删除失败');
+                    }
+                } catch (error) {
+                    console.error('Error deleting course:', error);
+                    alert('删除失败，请重试');
+                }
+            }
+
+            async function fetchCourses() {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const response = await fetch('/api/getCourses', {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'session': session
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        drawGrid();
+                        renderCourses(data.courses);
+                    } else {
+                        alert(data.message || '加载课程失败');
+                    }
+                } catch (error) {
+                    console.error('Error fetching courses:', error);
+                    alert('加载课程失败，请重试');
+                }
+            }
+
+            document.getElementById('addCourseBtn').addEventListener('click', () => {
+                clearCourseForm();
+                const modal = new bootstrap.Modal(document.getElementById('courseModal'));
+                modal.show();
+            });
+
+            document.getElementById('saveCourse').addEventListener('click', saveCourse);
+
+            fetchCourses();
+        });
+
+        function clearCourseForm() {
+            document.getElementById('courseForm').reset();
+            document.getElementById('courseId').value = '';
+        }
+
+        // 修改：在保存课程时处理 day 参数
+        async function saveCourse() {
+            const course = {
+                id: document.getElementById('courseId').value,
+                course_code: document.getElementById('courseCode').value,
+                course_color: document.getElementById('courseColor').value,
+                course_name: document.getElementById('courseName').value,
+                venue: document.getElementById('courseVenue').value,
+                start_time: document.getElementById('startTime').value,
+                end_time: document.getElementById('endTime').value,
+                instructor_name: document.getElementById('instructorName').value,
+                is_active: document.getElementById('isActive').checked,
+                day: parseInt(document.getElementById('courseDay').value, 10) // 获取 day 参数
+            };
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/addOrUpdateCourse', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ...course, session })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('课程已保存');
+                    location.reload();
+                } else {
+                    alert(data.message || '保存失败');
+                }
+            } catch (error) {
+                console.error('Error saving course:', error);
+                alert('保存失败，请重试');
+            }
+        }
+
+        function getSessionFromCookie() {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        }
+    </script>
+</body>
+</html>
