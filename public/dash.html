@@ -233,10 +233,14 @@
                             <div class="column-header mt-4" id="cycleTitle">循环</div>
                             <div id="cycleContainer"></div>
                         </div>
+                        <div id="todoContainer">
+                        </div>
                     </div>
                     
-                    <div class="column-container" id="todoContainer">
-                        <div class="column-header">其他事项</div>
+                    <div class="column-container">
+                        <div id="scheduleContainer">
+                            
+                        </div>
                     </div>
                 </div>
             </div>
@@ -670,8 +674,11 @@
                             <div class="d-flex flex-column align-items-center">
                                 <strong>${formattedTime}</strong>
                             </div>
+                        </div><div class="card-body">
+                        
+                        <h5 class="ms-2">${categoryBadges}${item.title}</h5>
+                        ${item.description ? `<p>${item.description}</p>` : ''}
                         </div>
-                        ${item.description ? `<div class="card-body"><p>${item.description}</p></div>` : ''}
                     `;
                     todayPlanContainer.appendChild(card);
 
@@ -716,6 +723,7 @@
                 await fetchCategories(); // 获取分类
                 await fetchItems();       // 获取事项
                 await fetchTodayCycles(formattedDate); // 获取今日循环
+                await loadTodaySchedule(); // 新增：加载今日课程表
             }
 
             // 获取URL中的date参数
@@ -776,6 +784,86 @@
                     alert('加载循环事项失败，请重试');
                 }
             }
+
+            // 修改：在 scheduleContainer 中加载当天课程表
+            async function loadTodaySchedule() {
+                const scheduleContainer = document.getElementById('scheduleContainer');
+                scheduleContainer.innerHTML = '<div class="column-header">' + ' 课表</div>'; // 添加带日期的标题
+
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    // 解析 formattedDate (YYYYMMDD 格式)
+                    const year = parseInt(formattedDate.substring(0, 4), 10);
+                    const month = parseInt(formattedDate.substring(4, 6), 10) - 1; // 月份从0开始
+                    const day = parseInt(formattedDate.substring(6, 8), 10);
+                    
+                    // 创建日期对象
+                    const selectedDate = new Date(year, month, day);
+                    
+                    // 获取星期几（0-6，0是周日）
+                    const dayOfWeek = selectedDate.getDay();
+                    
+                    // 修改API请求，传递日期参数以获取当天课程
+                    const response = await fetch(`/api/getCourses`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'session': session
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay());
+
+                        todayCourses.sort((a, b) => {
+                            const aStart = a.start_time.split(':').map(Number);
+                            const bStart = b.start_time.split(':').map(Number);
+                            return aStart[0] - bStart[0] || aStart[1] - bStart[1];
+                        });
+
+                        todayCourses.forEach(course => {
+                            const card = document.createElement('div');
+                            card.className = 'card mb-3';
+
+                            card.innerHTML = `
+                                <div class="card-header">
+                                    <strong>${course.start_time} - ${course.end_time}</strong>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <span class="badge bg-secondary me-2">${course.course_code}</span>
+                                        <h4 class="mb-0">${course.course_name}</h4>
+                                    </div>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-geo-alt-fill text me-1"></i>
+                                        <span class="me-3">${course.venue}</span>
+                                        <i class="bi bi-person-fill text me-1"></i>
+                                        <span>${course.instructor_name}</span>
+                                    </div>
+                                </div>
+                            `;
+
+                            scheduleContainer.appendChild(card);
+                        });
+                    } else {
+                        alert(data.message || '加载课程失败');
+                    }
+                } catch (error) {
+                    console.error('Error loading today schedule:', error);
+                    alert('加载课程失败，请重试');
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                loadTodaySchedule();
+            });
 
             initializePage();
         });

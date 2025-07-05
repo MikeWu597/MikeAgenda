@@ -183,6 +183,7 @@
             }
 
             // 渲染课程
+            // 修改：对于不启用的课程，外框设置为 10% 不透明度
             function renderCourses(courses) {
                 const timeColumnWidth = 50; // 与时间列宽度保持一致
                 const adjustedCanvasWidth = canvasWidth - timeColumnWidth;
@@ -199,8 +200,14 @@
                     const endY = (endHour + endMinute / 60) * rowHeight;
                     const height = endY - startY;
 
-                    ctx.fillStyle = `${course.course_color}4D`; // 设置为半透明（30% 不透明度）
-                    ctx.fillRect(timeColumnWidth + dayIndex * adjustedColumnWidth, startY, adjustedColumnWidth, height);
+                    if (course.is_active) {
+                        ctx.fillStyle = `${course.course_color}4D`; // 启用课程：设置为半透明（30% 不透明度）
+                        ctx.fillRect(timeColumnWidth + dayIndex * adjustedColumnWidth, startY, adjustedColumnWidth, height);
+                    } else {
+                        ctx.strokeStyle = `${course.course_color}1A`; // 不启用课程：外框设置为 10% 不透明度
+                        ctx.lineWidth = 2;
+                        ctx.strokeRect(timeColumnWidth + dayIndex * adjustedColumnWidth, startY, adjustedColumnWidth, height);
+                    }
 
                     ctx.fillStyle = '#000';
                     ctx.font = 'bold 12px Arial';
