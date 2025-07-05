@@ -77,6 +77,22 @@ class SQLiteManager {
             );
         `;
 
+        // 修改：为课程表添加 day 列
+        const createCourseTableQuery = `
+            CREATE TABLE IF NOT EXISTS courses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                course_code TEXT NOT NULL,
+                course_color TEXT NOT NULL,
+                course_name TEXT NOT NULL,
+                venue TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                instructor_name TEXT NOT NULL,
+                is_active BOOLEAN DEFAULT 1,
+                day INTEGER NOT NULL DEFAULT 0
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -94,7 +110,13 @@ class SQLiteManager {
                                         if (err) {
                                             reject(err);
                                         } else {
-                                            resolve();
+                                            this.db.run(createCourseTableQuery, (err) => {
+                                                if (err) {
+                                                    reject(err);
+                                                } else {
+                                                    resolve();
+                                                }
+                                            });
                                         }
                                     });
                                 }
@@ -344,6 +366,115 @@ class SQLiteManager {
                     reject(err);
                 } else {
                     resolve({ success: true, message: '循环的下次执行日期已推迟一天' });
+                }
+            });
+        });
+    }
+
+    // 新增：添加课程
+    async addCourse(course) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                INSERT INTO courses (course_code, course_color, course_name, venue, start_time, end_time, instructor_name, is_active, day)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            this.db.run(query, [
+                course.course_code,
+                course.course_color,
+                course.course_name,
+                course.venue,
+                course.start_time,
+                course.end_time,
+                course.instructor_name,
+                course.is_active,
+                course.day
+            ], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：删除课程
+    async deleteCourse(courseId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                DELETE FROM courses
+                WHERE id = ?
+            `;
+
+            this.db.run(query, [courseId], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：更新课程
+    async updateCourse(courseId, updatedCourse) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                UPDATE courses
+                SET course_code = ?, course_color = ?, course_name = ?, venue = ?, start_time = ?, end_time = ?, instructor_name = ?, is_active = ?, day = ?
+                WHERE id = ?
+            `;
+
+            this.db.run(query, [
+                updatedCourse.course_code,
+                updatedCourse.course_color,
+                updatedCourse.course_name,
+                updatedCourse.venue,
+                updatedCourse.start_time,
+                updatedCourse.end_time,
+                updatedCourse.instructor_name,
+                updatedCourse.is_active,
+                updatedCourse.day,
+                courseId
+            ], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：查询课程
+    async getCourses() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                SELECT * FROM courses
+            `;
+
+            this.db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
                 }
             });
         });

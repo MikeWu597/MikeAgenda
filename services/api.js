@@ -1045,4 +1045,88 @@ router.post('/getTodayCycles', async (req, res) => {
     }
 });
 
+// 新增：获取课程表 API
+router.get('/getCourses', async (req, res) => {
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const courses = await sqliteManager.getCourses();
+        res.json({ success: true, courses });
+    } catch (err) {
+        console.error('Error fetching courses:', err.message);
+        res.status(500).json({ success: false, message: '加载课程失败' });
+    }
+});
+
+// 修改：在添加或更新课程时处理 day 参数
+router.post('/addOrUpdateCourse', async (req, res) => {
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const course = req.body;
+        if (course.id) {
+            const updated = await sqliteManager.updateCourse(course.id, course);
+            if (updated) {
+                res.json({ success: true, message: '课程已更新' });
+            } else {
+                res.status(500).json({ success: false, message: '更新失败' });
+            }
+        } else {
+            const newId = await sqliteManager.addCourse(course);
+            res.json({ success: true, message: '课程已添加', id: newId });
+        }
+    } catch (err) {
+        console.error('Error adding/updating course:', err.message);
+        res.status(500).json({ success: false, message: '保存失败' });
+    }
+});
+
+// 新增：删除课程 API
+router.post('/deleteCourse', async (req, res) => {
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const courseId = req.body.id;
+        const deleted = await sqliteManager.deleteCourse(courseId);
+        if (deleted) {
+            res.json({ success: true, message: '课程已删除' });
+        } else {
+            res.status(500).json({ success: false, message: '删除失败' });
+        }
+    } catch (err) {
+        console.error('Error deleting course:', err.message);
+        res.status(500).json({ success: false, message: '删除失败' });
+    }
+});
+
 module.exports = router;
