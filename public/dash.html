@@ -671,9 +671,7 @@
                     const formattedTime = new Date(item.planned_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     card.innerHTML = `
                         <div class="card-header">
-                            <div class="d-flex flex-column align-items-center">
                                 <strong>${formattedTime}</strong>
-                            </div>
                         </div><div class="card-body">
                         
                         <h5 class="ms-2">${categoryBadges}${item.title}</h5>
