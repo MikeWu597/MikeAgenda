@@ -925,6 +925,44 @@ router.post('/deleteCycle', async (req, res) => {
     }
 });
 
+// 新增：推迟循环的下次执行日期 API
+router.post('/delayCycleNextDate', async (req, res) => {
+    const cycleId = req.body.id;
+
+    if (!cycleId) {
+        return res.status(400).json({ success: false, message: '缺少循环 ID' });
+    }
+
+    // 从请求体中获取 session
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        // 确保 SQLiteManager 已初始化
+        await sqliteManager.init();
+
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 调用 SQLiteManager 的 delayCycleNextDate 方法
+        const result = await sqliteManager.delayCycleNextDate(cycleId);
+
+        if (!result.success) {
+            return res.status(500).json({ success: false, message: result.message });
+        }
+
+        res.json({ success: true, message: '循环的下次执行日期已推迟一天' });
+    } catch (err) {
+        console.error('Error delaying cycle next date:', err.message);
+        res.status(500).json({ success: false, message: '推迟失败' });
+    }
+});
+
 // 新增：判断日期是否符合循环配置
 function isCycleMatch(cycleConfig, date) {
     const { cycle, config } = JSON.parse(cycleConfig);

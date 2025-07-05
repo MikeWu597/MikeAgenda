@@ -325,6 +325,29 @@ class SQLiteManager {
             });
         });
     }
+
+    // 新增：推迟循环的下次执行日期
+    async delayCycleNextDate(cycleId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `
+                UPDATE cycle
+                SET next = DATETIME(next, '+1 day')
+                WHERE id = ?
+            `;
+
+            this.db.run(query, [cycleId], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve({ success: true, message: '循环的下次执行日期已推迟一天' });
+                }
+            });
+        });
+    }
 }
 
 module.exports = SQLiteManager;

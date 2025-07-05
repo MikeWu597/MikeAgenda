@@ -176,8 +176,8 @@
                         <div class="d-flex gap-2 mt-3">
                             <button class="btn btn-outline-primary edit-btn" data-id="${cycle.id}">编辑</button>
                             <button class="btn btn-danger delete-btn" data-id="${cycle.id}">删除</button>
-                            <!-- 新增：完成本次按钮 -->
                             <button class="btn btn-success complete-current-btn" data-id="${cycle.id}">完成本次</button>
+                            <button class="btn btn-warning delay-btn" data-id="${cycle.id}">推迟一天</button>
                         </div>
                     </div>
                 `;
@@ -287,6 +287,47 @@
                         alert('更新失败，请重试');
                     }
                 }
+            });
+
+            // 为“推迟一天”按钮绑定点击事件
+            document.querySelectorAll('.delay-btn').forEach(button => {
+                button.addEventListener('click', async (event) => {
+                    const cycleId = event.target.dataset.id;
+
+                    if (!cycleId) {
+                        alert('未找到循环 ID');
+                        return;
+                    }
+
+                    try {
+                        const session = getSessionFromCookie(); // 从 cookie 中获取 session
+                        if (!session) {
+                            alert('未授权，请重新登录');
+                            window.location.href = '/login.html';
+                            return;
+                        }
+
+                        const response = await fetch('/api/delayCycleNextDate', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ id: cycleId, session })
+                        });
+
+                        const data = await response.json();
+
+                        if (data.success) {
+                            alert('循环的下次执行日期已推迟一天');
+                            location.reload(); // 刷新页面
+                        } else {
+                            alert(data.message || '推迟失败');
+                        }
+                    } catch (error) {
+                        console.error('Error delaying cycle next date:', error);
+                        alert('推迟失败，请重试');
+                    }
+                });
             });
         }
 
