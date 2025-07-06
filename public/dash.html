@@ -186,14 +186,14 @@
         }
 
         .column-container:first-child {
-            flex: 8; 
+            flex: 6; /* 修改：左侧变窄 */
             border-right: none;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }
 
         .column-container:last-child {
-            flex: 4; 
+            flex: 6; /* 修改：右侧变宽 */
             border-left: none;
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
@@ -224,22 +224,26 @@
             <div class="col-md-12">
                 <div class="container-row">
                     <div class="column-container" id="leftContainer">
+                        <div id="scheduleContainer">
+                        </div>
+                    </div>
+                    <div class="column-container">
                         <div id="todayPlanContainer">
                             <div class="column-header" id="dayTitle">当日计划</div>
-                            <!-- 新增时间轴容器 -->
                             <div class="timeline-container" id="timelineContainer"></div>
                         </div>
                         <div id="cycleContainerWrapper">
                             <div class="column-header mt-4" id="cycleTitle">循环</div>
                             <div id="cycleContainer"></div>
                         </div>
-                        <div id="todoContainer">
-                        </div>
+                        
                     </div>
                     
+                    
+                </div>
+                <div class="container-row">
                     <div class="column-container">
-                        <div id="scheduleContainer">
-                            
+                        <div id="todoContainer">
                         </div>
                     </div>
                 </div>
@@ -258,7 +262,7 @@
 
     <!-- 新增: 页脚小字链接 -->
     <div style="text-align: center; margin-top: 10px; height:120px; font-size: 0.8rem; color: #6c757d;">
-        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a>
+        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a><a href="/view/courses.html" class="text-decoration-none" style="margin-left:1rem">课程表管理</a>
     </div>
 
     <div class="expanded-menu" id="viewExpandedMenu">
@@ -710,6 +714,7 @@
                                 </div>
                                 ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
                             </div>
+                            ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
                         `;
                         todoContainer.appendChild(card);
                     }
@@ -818,7 +823,7 @@
 
                     const data = await response.json();
                     if (data.success) {
-                        const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay());
+                        const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay()  && course.is_active);
 
                         todayCourses.sort((a, b) => {
                             const aStart = a.start_time.split(':').map(Number);
@@ -836,7 +841,7 @@
                                 </div>
                                 <div class="card-body">
                                     <div class="d-flex align-items-center mb-2">
-                                        <span class="badge bg-secondary me-2">${course.course_code}</span>
+                                        <span class="badge me-2" style="background-color: ${course.course_color};">${course.course_code}</span>
                                         <h4 class="mb-0">${course.course_name}</h4>
                                     </div>
                                     <div class="d-flex align-items-center">
