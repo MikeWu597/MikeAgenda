@@ -93,6 +93,29 @@ class SQLiteManager {
             );
         `;
 
+        // 创建 renewal_category 表
+        const createRenewalCategoryTableQuery = `
+            CREATE TABLE IF NOT EXISTS renewal_category (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                color TEXT NOT NULL,
+                note TEXT
+            );
+        `;
+
+        // 创建 renewal 表
+        const createRenewalTableQuery = `
+            CREATE TABLE IF NOT EXISTS renewal (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                category_id INTEGER NOT NULL,
+                expiry_date DATETIME NOT NULL,
+                reminder_days INTEGER NOT NULL,
+                FOREIGN KEY (category_id) REFERENCES renewal_category (id)
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -114,7 +137,19 @@ class SQLiteManager {
                                                 if (err) {
                                                     reject(err);
                                                 } else {
-                                                    resolve();
+                                                    this.db.run(createRenewalCategoryTableQuery, (err) => {
+                                                        if (err) {
+                                                            reject(err);
+                                                        } else {
+                                                            this.db.run(createRenewalTableQuery, (err) => {
+                                                                if (err) {
+                                                                    reject(err);
+                                                                } else {
+                                                                    resolve();
+                                                                }
+                                                            });
+                                                        }
+                                                    });
                                                 }
                                             });
                                         }
@@ -471,6 +506,160 @@ class SQLiteManager {
             `;
 
             this.db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 新增：创建 renewal_category
+    async createRenewalCategory(name, color, note) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                INSERT INTO renewal_category (name, color, note)
+                VALUES (?, ?, ?)
+            `;
+            this.db.run(query, [name, color, note], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：更新 renewal_category
+    async updateRenewalCategory(id, name, color, note) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                UPDATE renewal_category
+                SET name = ?, color = ?, note = ?
+                WHERE id = ?
+            `;
+            this.db.run(query, [name, color, note, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除 renewal_category
+    async deleteRenewalCategory(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                DELETE FROM renewal_category
+                WHERE id = ?
+            `;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有 renewal_category
+    async getRenewalCategories() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM renewal_category', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 新增：创建 renewal
+    async createRenewal(name, description, categoryId, expiryDate, reminderDays) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                INSERT INTO renewal (name, description, category_id, expiry_date, reminder_days)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            this.db.run(query, [name, description, categoryId, expiryDate, reminderDays], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：更新 renewal
+    async updateRenewal(id, name, description, categoryId, expiryDate, reminderDays) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                UPDATE renewal
+                SET name = ?, description = ?, category_id = ?, expiry_date = ?, reminder_days = ?
+                WHERE id = ?
+            `;
+            this.db.run(query, [name, description, categoryId, expiryDate, reminderDays, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除 renewal
+    async deleteRenewal(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                DELETE FROM renewal
+                WHERE id = ?
+            `;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有 renewal
+    async getRenewals() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM renewal', [], (err, rows) => {
                 if (err) {
                     reject(err);
                 } else {
