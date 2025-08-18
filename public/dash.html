@@ -266,7 +266,7 @@
 
     <!-- 新增: 页脚小字链接 -->
     <div style="text-align: center; margin-top: 10px; height:120px; font-size: 0.8rem; color: #6c757d;">
-        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a><a href="/view/courses.html" class="text-decoration-none" style="margin-left:1rem">课程表管理</a>
+        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a><a href="/view/courses.html" class="text-decoration-none" style="margin-left:1rem">课程表管理</a><a href="/settings.html" class="text-decoration-none" style="margin-left:1rem">设置</a>
     </div>
 
     <div class="expanded-menu" id="viewExpandedMenu">
@@ -412,7 +412,7 @@
             document.head.appendChild(calendarStyle);
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+        function loadContent() {
             const viewMenuBtn = document.getElementById('viewMenuBtn');
             const createMenuBtn = document.getElementById('createMenuBtn');
             const viewExpandedMenu = document.getElementById('viewExpandedMenu');
@@ -873,7 +873,8 @@
             });
 
             initializePage();
-        });
+        }
+        document.addEventListener('DOMContentLoaded', loadContent);
     </script>
 </body>
 </html>
