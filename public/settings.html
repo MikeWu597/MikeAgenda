@@ -29,7 +29,7 @@
                 </h2>
                 <!-- 添加自动刷新时间设置选项 -->
                 <div class="mb-4">
-                    <label for="refreshInterval" class="form-label">自动刷新时间（秒）：</label>
+                    <label for="refreshInterval" class="form-label">当前客户端自动刷新时间（秒）：</label>
                     <div class="input-group">
                         <input type="number" id="refreshInterval" class="form-control" min="0" placeholder="输入秒数">
                         <button id="saveRefreshInterval" class="btn btn-primary">保存</button>
@@ -77,8 +77,9 @@
                     alert('请输入有效的数字！');
                     return;
                 }
-                setCookie('refreshInterval', interval, 365);
+                setCookie('refreshInterval', interval, 3650); // 保存 10 年
                 alert('自动刷新时间已保存！');
+                location.reload(); // 刷新页面以应用新设置
             });
         });
     </script>

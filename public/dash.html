@@ -265,7 +265,7 @@
     </div>
 
     <!-- 新增: 页脚小字链接 -->
-    <div style="text-align: center; margin-top: 10px; height:120px; font-size: 0.8rem; color: #6c757d;">
+    <div style="text-align: center; margin-top: 10px; height:130px; font-size: 0.8rem; color: #6c757d;" id="footerLinks">
         <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a><a href="/view/courses.html" class="text-decoration-none" style="margin-left:1rem">课程表管理</a><a href="/settings.html" class="text-decoration-none" style="margin-left:1rem">设置</a>
     </div>
 
@@ -874,7 +874,43 @@
 
             initializePage();
         }
+        // 新增：读取自动刷新时间的 Cookie
+        function getCookie(name) {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [key, value] = cookie.split('=');
+                if (key === name) {
+                    return decodeURIComponent(value);
+                }
+            }
+            return '0'; // 默认值为 0
+        }
         document.addEventListener('DOMContentLoaded', loadContent);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const refreshInterval = parseInt(getCookie('refreshInterval'), 10);
+            const countdownElement = document.createElement('div');
+            countdownElement.style.fontSize = '0.8rem';
+            countdownElement.style.color = '#6c757d';
+            countdownElement.style.marginTop = '5px';
+            countdownElement.textContent = refreshInterval > 0 ? `刷新倒计时：${refreshInterval}秒` : '';
+
+            const footerLinks = document.getElementById('footerLinks');
+            footerLinks.appendChild(countdownElement);
+
+            if (refreshInterval > 0) {
+                let countdown = refreshInterval;
+
+                const intervalId = setInterval(() => {
+                    countdown -= 1;
+                    if (countdown <= 0) {
+                        location.reload();
+                    } else {
+                        countdownElement.textContent = `刷新倒计时：${countdown}秒`;
+                    }
+                }, 1000);
+            }
+        });
     </script>
 </body>
 </html>
