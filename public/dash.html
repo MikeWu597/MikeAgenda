@@ -241,6 +241,12 @@
                             <div id="cycleContainer"></div>
                         </div>
                         
+                        <!-- 新增：续费板块 -->
+                        <div id="renewalContainerWrapper">
+                            <div class="column-header mt-4" id="renewalTitle">续费</div>
+                            <div id="renewalContainer"></div>
+                        </div>
+                        
                     </div>
                     
                     
@@ -363,6 +369,25 @@
     </style>
 
     <script>
+        // 获取URL中的date参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get('date');
+        const currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
+
+        // 格式化日期为YYYYMMDD格式
+        const formattedDate = currentDate.toISOString().split('T')[0].replace(/-/g, '');
+
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
         function showCalendar() {
             document.getElementById('calendarModal').style.display = 'block';
             renderCalendar();
@@ -569,16 +594,7 @@
             // 新增：存储所有分类的变量
             let allCategories = [];
 
-            const getSessionFromCookie = () => {
-                const cookies = document.cookie.split('; ');
-                for (const cookie of cookies) {
-                    const [name, value] = cookie.split('=');
-                    if (name === 'session') {
-                        return decodeURIComponent(value);
-                    }
-                }
-                return null;
-            };
+            
             // 修改：在页面加载时获取所有分类
             async function fetchCategories() {
                 try {
@@ -757,21 +773,17 @@
                 });
             }
 
-            // 修改：在页面加载时获取事项和循环
+            // 修改：在页面加载时获取所有数据
             async function initializePage() {
                 await fetchCategories(); // 获取分类
+                await fetchRenewalCategories(); // 获取续费分类
                 await fetchItems();       // 获取事项
                 await fetchTodayCycles(formattedDate); // 获取今日循环
-                await loadTodaySchedule(); // 新增：加载今日课程表
+                await fetchTodayRenewals(); // 获取今日续费项目
+                await loadTodaySchedule(); // 加载今日课程表
             }
 
-            // 获取URL中的date参数
-            const urlParams = new URLSearchParams(window.location.search);
-            const dateParam = urlParams.get('date');
-            const currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
-
-            // 格式化日期为YYYYMMDD格式
-            const formattedDate = currentDate.toISOString().split('T')[0].replace(/-/g, '');
+            
 
             // 获取当前日期的年、月、日
             const year = currentDate.getFullYear();
@@ -943,6 +955,114 @@
                 }, 1000);
             }
         });
+
+        // 新增：存储所有续费分类的变量
+        let allRenewalCategories = [];
+
+        // 新增：获取所有续费分类
+        async function fetchRenewalCategories() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getAllRenewalCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    allRenewalCategories = data.data; // 存储所有续费分类
+                } else {
+                    console.error(data.message || '加载续费分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching renewal categories:', error);
+                alert('加载续费分类失败，请重试');
+            }
+        }
+
+        // 新增：渲染续费项目
+        function renderRenewals(renewals) {
+            const renewalContainer = document.getElementById('renewalContainer');
+            renewalContainer.innerHTML = ''; // 清空容器
+
+            renewals.forEach(renewal => {
+                // 解析到期日期
+                const expiryDate = new Date(renewal.expiry_date);
+                // 计算提醒日期（到期日 - 提醒天数）
+                const reminderDate = new Date(expiryDate);
+                reminderDate.setDate(expiryDate.getDate() - renewal.reminder_days);
+                
+                // 比较提醒日期是否小于等于当前显示日期
+                const displayDate = new Date(formattedDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                
+                // 只有当提醒日期 <= 显示日期时才显示
+                if (reminderDate <= displayDate) {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-3';
+
+                    // 获取分类信息
+                    const category = allRenewalCategories.find(c => c.id === renewal.category_id);
+                    const categoryBadge = category ? 
+                        `<span class="badge me-2" style="background-color: ${category.color};">${category.name}</span>` : 
+                        '<span class="badge me-2">未知分类</span>';
+
+                    // 格式化到期日期
+                    const formattedExpiry = expiryDate.toLocaleDateString();
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                ${categoryBadge}
+                                <h5 class="ms-2">${renewal.name}</h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-calendar-date" style="margin-right:4px"></i>
+                                <small>${formattedExpiry}</small>
+                            </div>
+                        </div>
+                    `;
+                    renewalContainer.appendChild(card);
+                }
+            });
+        }
+
+        // 新增：获取当天续费项目
+        async function fetchTodayRenewals() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getAllRenewals', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    renderRenewals(data.data);
+                } else {
+                    console.error(data.message || '加载续费项目失败');
+                }
+            } catch (error) {
+                console.error('Error fetching today\'s renewals:', error);
+                alert('加载续费项目失败，请重试');
+            }
+        }
+
     </script>
 </body>
 </html>
