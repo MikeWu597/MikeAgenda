@@ -1235,7 +1235,7 @@ router.delete('/deleteRenewals/:id', async (req, res) => {
 });
 
 // 获取所有续费分类
-router.get('/getAllRenewalCategories', async (req, res) => {
+router.post('/getAllRenewalCategories', async (req, res) => {
     const session = req.body.session;
 
     if (!session) {
@@ -1247,7 +1247,7 @@ router.get('/getAllRenewalCategories', async (req, res) => {
         if (!isValid) {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
-        const categories = await sqliteManager.getAllRenewalCategories();
+        const categories = await sqliteManager.getRenewalCategories();
         res.json({ success: true, data: categories });
     } catch (err) {
         console.error('Error fetching renewal categories:', err.message);
@@ -1268,15 +1268,41 @@ router.post('/createRenewalCategories', async (req, res) => {
         if (!isValid) {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
-        const { name, description } = req.body;
-        if (!name) {
+        const { name, color, description } = req.body;
+        if (!name || !color) {
             return res.status(400).json({ success: false, message: '缺少必要字段' });
         }
-        await sqliteManager.createRenewalCategory(name, description);
+        await sqliteManager.createRenewalCategory(name, color, description);
         res.json({ success: true, message: '续费分类创建成功' });
     } catch (err) {
         console.error('Error creating renewal category:', err.message);
         res.status(500).json({ success: false, message: '创建续费分类失败' });
+    }
+});
+
+router.post('/getRenewalCategoryById', async (req, res) => {
+    const session = req.body.session;
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        const { id } = req.body;
+        if (!id) {
+            return res.status(400).json({ success: false, message: '缺少续费分类 ID' });
+        }
+        const category = await sqliteManager.getRenewalCategoryById(id);
+        if (!category) {
+            return res.status(404).json({ success: false, message: '续费分类未找到' });
+        }
+        res.json({ success: true, data: category });
+    } catch (err) {
+        console.error('Error fetching renewal category by ID:', err.message);
+        res.status(500).json({ success: false, message: '获取续费分类失败' });
     }
 });
 
@@ -1294,11 +1320,11 @@ router.put('/updateRenewalCategories/:id', async (req, res) => {
             return res.status(401).json({ success: false, message: '会话无效' });
         }
         const { id } = req.params;
-        const { name, description } = req.body;
-        if (!id || !name) {
+        const { name, description, color } = req.body;
+        if (!id || !name || !color) {
             return res.status(400).json({ success: false, message: '缺少必要字段' });
         }
-        await sqliteManager.updateRenewalCategory(id, name, description);
+        await sqliteManager.updateRenewalCategory(id, name, color, description);
         res.json({ success: true, message: '续费分类更新成功' });
     } catch (err) {
         console.error('Error updating renewal category:', err.message);
@@ -1306,8 +1332,31 @@ router.put('/updateRenewalCategories/:id', async (req, res) => {
     }
 });
 
-// 删除续费项目
-router.delete('/deleteRenewalCategories/:id', async (req, res) => {
+router.post('/fetchRenewalsByCategory', async (req, res) => {
+    const session = req.body.session;
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        const { categoryId } = req.body;
+        if (!categoryId) {
+            return res.status(400).json({ success: false, message: '缺少分类 ID' });
+        }
+        const renewals = await sqliteManager.getRenewalsByCategory(categoryId);
+        res.json({ success: true, data: renewals });
+    } catch (err) {
+        console.error('Error fetching renewals by category:', err.message);
+        res.status(500).json({ success: false, message: '获取续费项目失败' });
+    }
+});
+
+// 删除续费分类
+router.post('/deleteRenewalCategories/:id', async (req, res) => {
     const session = req.body.session;
 
     if (!session) {

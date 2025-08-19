@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新建续费分类</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    新建续费分类
+                </h2>
+                <div class="form-container">
+                    <form id="createForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="color" class="form-label">颜色</label>
+                            <input type="color" class="form-control" id="color" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="note" class="form-label">备注</label>
+                            <textarea class="form-control" id="note"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">创建分类</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('createForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const color = document.getElementById('color').value;
+            const description = document.getElementById('note').value;
+
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const sessionValue = session.split('=')[1];
+
+            fetch('/api/createRenewalCategories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color, description, session: sessionValue })
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('分类已创建');
+                    window.location.href = '/view/renewal_category.html';
+                } else {
+                    alert('创建分类失败');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>所有续费分类</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .category-card {
+            margin-bottom: 1rem;
+            cursor: pointer;
+        }
+        .category-details {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    所有续费分类
+                </h2>
+                <div id="categoriesContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加编辑分类的模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">编辑续费分类</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editCategoryId">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">名称</label>
+                            <input type="text" class="form-control" id="editName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editColor" class="form-label">颜色</label>
+                            <input type="color" class="form-control" id="editColor" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editNote" class="form-label">备注</label>
+                            <textarea class="form-control" id="editNote"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveCategory">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+
+        // 根据分类 ID 获取该分类下的所有事项
+        async function fetchItemsByCategory(categoryId) {
+            try {
+                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+                const response = await fetch('/api/fetchRenewalsByCategory', {
+                    method: 'POST', // 修改: 将请求方式改为 POST
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ categoryId: categoryId, session: sessionValue }) // 修改: 通过 POST 参数传递 session 和分类 ID
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return data.data;
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载事项失败');
+                }
+            } catch (error) {
+                console.error('Error fetching items by category:', error);
+                alert('加载事项失败，请重试');
+            }
+        }
+
+        // 获取单个分类
+        async function fetchCategory(categoryId) {
+            try {
+                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+                const response = await fetch(`/api/getRenewalCategoryById`, { 
+                    method: 'POST', // 修改: 将请求方式改为 POST
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: categoryId, session: sessionValue }) // 修改: 通过 POST 参数传递 session 和分类 ID
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return data.data; // 修改: 返回 data.data 而不是 data.category
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '获取分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching category:', error);
+                alert('获取分类失败，请重试');
+            }
+        }
+
+        // 修改: 将 GET 请求改为 POST 请求，并在请求体中添加 session 参数
+        async function fetchCategories() {
+            try {
+                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+                const response = await fetch('/api/getAllRenewalCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session: sessionValue })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    renderCategories(data.data);
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        }
+
+        // 渲染分类列表
+        function renderCategories(categories) {
+            const container = document.getElementById('categoriesContainer');
+            container.innerHTML = ''; // 清空容器
+
+            categories.forEach(category => {
+                const card = document.createElement('div');
+                card.className = 'card category-card';
+                card.innerHTML = `
+                    <div class="card-header" style="background-color: ${category.color}; color: #fff;">
+                        <h5>${category.name}</h5>
+                        <small>${category.note}</small>
+                    </div>
+                    <div class="card-body category-details" style="display: none;">
+                        <button class="btn btn-primary edit-btn" data-id="${category.id}">编辑</button>
+                        <button class="btn btn-danger delete-btn" data-id="${category.id}">删除</button>
+                        <div class="mt-3">
+                            <h6>该分类下共有 <span id="itemCount-${category.id}">0</span> 个事项：</h6>
+                            <ul class="list-group" id="itemsList-${category.id}"></ul>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // 绑定事件
+            document.querySelectorAll('.category-card').forEach(card => {
+                card.addEventListener('click', async () => {
+                    const details = card.querySelector('.category-details');
+                    const categoryId = card.querySelector('.edit-btn').getAttribute('data-id');
+                    const itemsList = card.querySelector(`#itemsList-${categoryId}`);
+                    const itemCountElement = card.querySelector(`#itemCount-${categoryId}`);
+
+                    if (details.style.display === 'none') {
+                        try {
+                            // 修改: 将 GET 请求改为 POST 请求，并通过 POST 参数传递 session 和 categoryId
+                            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                            if (!session) {
+                                alert('未授权，请重新登录');
+                                window.location.href = '/login.html';
+                                return;
+                            }
+
+                            const sessionValue = session.split('=')[1];
+                            const response = await fetch('/api/fetchRenewalsByCategory', {
+                                method: 'POST', // 修改: 请求方式改为 POST
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ categoryId: categoryId, session: sessionValue }) // 修改: 通过 POST 参数传递 session 和 categoryId
+                            });
+
+                            const data = await response.json();
+                            if (data.success) {
+                                itemsList.innerHTML = ''; // 清空事项列表
+                                data.data.forEach(item => {
+                                    const listItem = document.createElement('li');
+                                    listItem.className = 'list-group-item';
+                                    listItem.innerHTML = `
+                                        <strong>${item.title}</strong>
+                                        <p>${item.description || '无备注'}</p>
+                                    `;
+                                    itemsList.appendChild(listItem);
+                                });
+                                // 更新事项计数
+                                itemCountElement.textContent = data.data.length;
+                            } else {
+                                alert(data.message || '加载事项失败');
+                            }
+                        } catch (error) {
+                            console.error('Error fetching items by category:', error);
+                            alert('加载事项失败，请重试');
+                        }
+                    }
+
+                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
+                });
+            });
+
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const categoryId = btn.getAttribute('data-id');
+                    const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+
+                    const sessionValue = session.split('=')[1];
+                    fetch(`/api/getRenewalCategoryById`, { // 修改: 更新为正确的 API 路径
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'session': sessionValue }, // 添加 Content-Type 头
+                        body: JSON.stringify({ id: categoryId, session: sessionValue }) // 添加请求体
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const category = data.data; // 修改: 更新为正确的数据字段
+                            document.getElementById('editCategoryId').value = category.id;
+                            document.getElementById('editName').value = category.name;
+                            document.getElementById('editColor').value = category.color;
+                            document.getElementById('editNote').value = category.note;
+                            new bootstrap.Modal(document.getElementById('editModal')).show();
+                        } else {
+                            alert('获取分类信息失败');
+                        }
+                    });
+                });
+            });
+
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const categoryId = btn.getAttribute('data-id');
+                    if (confirm('确定要删除这个分类吗？')) {
+                        const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                        if (!session) {
+                            alert('未授权，请重新登录');
+                            window.location.href = '/login.html';
+                            return;
+                        }
+
+                        const sessionValue = session.split('=')[1];
+                        fetch(`/api/deleteRenewalCategories/${categoryId}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session: sessionValue }) 
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                alert('分类已删除');
+                                fetchCategories();
+                            } else {
+                                alert(data.message || '删除分类失败');
+                            }
+                        });
+                    }
+                });
+            });
+        }
+
+        // 保存分类时添加 session 参数
+        document.getElementById('saveCategory').addEventListener('click', () => {
+            const categoryId = document.getElementById('editCategoryId').value;
+            const name = document.getElementById('editName').value;
+            const color = document.getElementById('editColor').value;
+            const description = document.getElementById('editNote').value;
+
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const sessionValue = session.split('=')[1];
+
+            if (categoryId) {
+                // 编辑分类
+                fetch(`/api/updateRenewalCategories/${categoryId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, color, description, session: sessionValue })
+                })
+                .then(response => {
+                    if (response.status === 401) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert('分类已更新');
+                        new bootstrap.Modal(document.getElementById('editModal')).hide();
+                        fetchCategories();
+                    } else {
+                        alert('更新分类失败');
+                    }
+                });
+            }
+        });
+
+        // 页面加载时获取分类
+        document.addEventListener('DOMContentLoaded', fetchCategories);
+    </script>
+</body>
+</html>

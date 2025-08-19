@@ -591,7 +591,41 @@ class SQLiteManager {
             });
         });
     }
+    
+    // 新增：获取 renewal_category by ID
+    async getRenewalCategoryById(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.get('SELECT * FROM renewal_category WHERE id = ?', [id], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    }
 
+    async getRenewalsByCategory(categoryId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                SELECT * FROM renewal WHERE category_id = ?
+            `;
+            this.db.all(query, [categoryId], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+    
     // 新增：创建 renewal
     async createRenewal(name, description, categoryId, expiryDate, reminderDays) {
         return new Promise((resolve, reject) => {
