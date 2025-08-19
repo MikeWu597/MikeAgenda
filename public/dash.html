@@ -282,6 +282,9 @@
         <div class="expanded-menu-btn" id="viewRenewalCategoryBtn">
             <i class="bi bi-minecart-loaded"></i>
         </div>
+        <div class="expanded-menu-btn" id="viewRenewalBtn">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+        </div>
     </div>
 
     <div class="expanded-menu" id="createExpandedMenu">
@@ -296,6 +299,9 @@
         </div>
         <div class="expanded-menu-btn" id="createRenewalCategoryBtn">
             <i class="bi bi-minecart-loaded"></i>
+        </div>
+        <div class="expanded-menu-btn" id="createRenewalBtn">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
         </div>
     </div>
 
@@ -519,6 +525,11 @@
                 window.location.href = '/create/renewal_category.html';
             });
 
+            // 新增: 点击创建续费按钮时跳转到 renewal.html
+            createRenewalBtn.addEventListener('click', function() {
+                window.location.href = '/create/renewal.html';
+            });
+
             // 新增: 点击查看事项按钮时跳转到 item.html
             viewItemBtn.addEventListener('click', function() {
                 window.location.href = '/view/item.html';
@@ -537,6 +548,11 @@
             // 新增: 点击查看续费分类按钮时跳转到 renewal_category.html
             viewRenewalCategoryBtn.addEventListener('click', function() {
                 window.location.href = '/view/renewal_category.html';
+            });
+
+            // 新增: 点击查看续费按钮时跳转到 renewal.html
+            viewRenewalBtn.addEventListener('click', function() {
+                window.location.href = '/view/renewal.html';
             });
 
             // 新增辅助函数：判断两个日期是否属于同一天
