@@ -964,13 +964,19 @@ router.post('/delayCycleNextDate', async (req, res) => {
 });
 
 // 新增：判断日期是否符合循环配置
-function isCycleMatch(cycleConfig, date) {
+function isCycleMatch(nextDateRaw, cycleConfig, date) {
     const { cycle, config } = JSON.parse(cycleConfig);
 
     // 修改：正确解析日期
     const year = parseInt(date.slice(0, 4), 10);
     const month = parseInt(date.slice(4, 6), 10);
     const day = parseInt(date.slice(6, 8), 10);
+
+    // 判断nextDate是否是date
+    const nextDate = new Date(nextDateRaw);
+    if (nextDate.getFullYear() === year && nextDate.getMonth() === month - 1 && nextDate.getDate() === day) {
+        return true;
+    }
 
     switch (cycle) {
         case 'daily':
@@ -1035,7 +1041,7 @@ router.post('/getTodayCycles', async (req, res) => {
                 res.status(500).json({ success: false, message: '获取循环事项失败' });
             } else {
                 // 过滤出符合条件的循环事项
-                const filteredCycles = rows.filter(row => isCycleMatch(row.cycle, date));
+                const filteredCycles = rows.filter(row => isCycleMatch(row.next, row.cycle, date));
                 res.json({ success: true, cycles: filteredCycles });
             }
         });
