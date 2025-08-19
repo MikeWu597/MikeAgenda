@@ -608,6 +608,23 @@ class SQLiteManager {
         });
     }
 
+    async getAllRenewals(session) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                SELECT * FROM renewal
+            `;
+            this.db.all(query, [session], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
     async getRenewalsByCategory(categoryId) {
         return new Promise((resolve, reject) => {
             if (!this.db) {

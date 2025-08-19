@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新建续费</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    新建续费
+                </h2>
+                <div class="form-container">
+                    <form id="createForm">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">标题</label>
+                            <input type="text" class="form-control" id="title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">描述</label>
+                            <textarea class="form-control" id="description"></textarea>
+                        </div>
+                        <!-- 修改: 分类选择改为单选框 -->
+                        <div class="mb-3" id="categoryRadioButtons">
+                            <label class="form-label">分类</label>
+                            <!-- Radio buttons will be dynamically populated here -->
+                        </div>
+                        <div class="mb-3">
+                            <label for="plannedTime" class="form-label">下次续费时间</label>
+                            <input type="date" class="form-control" id="plannedTime">
+                        </div>
+                        <div class="mb-3">
+                            <label for="dueDate" class="form-label">续费时限 (天)</label>
+                            <input type="number" class="form-control" id="dueDate" min="1" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">创建事项</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 加载分类选项
+            try {
+                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const sessionValue = session.split('=')[1];
+                const response = await fetch('/api/getAllRenewalCategories', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session: sessionValue })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // 修改: 更新为单选框
+                    const categoryRadioButtons = document.getElementById('categoryRadioButtons');
+                    data.data.forEach(category => {
+                        const div = document.createElement('div');
+                        div.className = 'form-check';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="radio" name="category" value="${category.id}" id="category-${category.id}">
+                            <label class="form-check-label" for="category-${category.id}">
+                                ${category.name}
+                            </label>
+                        `;
+                        categoryRadioButtons.appendChild(div);
+                    });
+                } else if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        });
+
+        document.getElementById('createForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const deadlineDays = document.getElementById('dueDate').value.trim();
+            const plannedDate = document.getElementById('plannedTime').value.trim();
+            const selectedCategory = document.querySelector('input[name="category"]:checked')?.value;
+
+            // Ensure all fields including category are filled
+            if (!title || !description || !deadlineDays || !plannedDate || !selectedCategory) {
+                alert('所有字段均为必填项，请填写完整');
+                return;
+            }
+
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const sessionValue = session.split('=')[1];
+
+            fetch('/api/createRenewals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: title, description, categoryId: selectedCategory, expiryDate: plannedDate, reminderDays: deadlineDays,session: sessionValue })
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('事项已创建');
+                    window.location.href = '/view/renewal.html';
+                } else {
+                    alert(data.message || '创建事项失败');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

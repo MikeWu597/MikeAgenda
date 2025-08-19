@@ -1138,7 +1138,7 @@ router.post('/deleteCourse', async (req, res) => {
 // 新增：续费管理相关 API
 
 // 获取所有续费项目
-router.get('/getAllRenewals', async (req, res) => {
+router.post('/getAllRenewals', async (req, res) => {
     const session = req.body.session;
 
     if (!session) {

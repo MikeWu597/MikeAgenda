@@ -7,15 +7,14 @@
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .cycle-card {
+        .renewal-card {
             margin-bottom: 1rem;
             cursor: pointer;
         }
-        .cycle-details {
+        .renewal-details {
             display: none;
         }
-        /* 新增样式：循环详情 */
-        .cycle-config {
+        .renewal-config {
             font-size: 0.8rem;
             color: #6c757d;
             margin-top: 0.5rem;
@@ -32,50 +31,43 @@
                     </a>
                     续费管理
                 </h2>
-                <div id="cyclesContainer"></div>
+                <div id="renewalsContainer"></div>
             </div>
         </div>
     </div>
 
-    <!-- 添加编辑循环的模态框 -->
+    <!-- 添加编辑续费项目的模态框 -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">编辑循环</h5>
+                    <h5 class="modal-title" id="editModalLabel">编辑续费项目</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="editForm">
-                        <input type="hidden" id="editCycleId">
+                        <input type="hidden" id="editRenewalId">
                         <div class="mb-3">
                             <label for="editName" class="form-label">名称</label>
                             <input type="text" class="form-control" id="editName" required>
                         </div>
                         <div class="mb-3">
-                            <label for="editNote" class="form-label">备注</label>
-                            <textarea class="form-control" id="editNote"></textarea>
+                            <label for="editDescription" class="form-label">描述</label>
+                            <textarea class="form-control" id="editDescription"></textarea>
                         </div>
                         <div class="mb-3">
-                            <label for="editCycleType" class="form-label">循环方式</label>
-                            <select class="form-select" id="editCycleType" required>
-                                <option value="">请选择循环方式</option>
-                                <option value="weekly">每周某天</option>
-                                <option value="monthly">每月第某天</option>
-                                <option value="monthly_last">每月倒数某天</option>
-                                <option value="daily">每天</option>
+                            <label for="editCategory" class="form-label">分类</label>
+                            <select class="form-select" id="editCategory" required>
+                                <!-- 分类选项动态加载 -->
                             </select>
                         </div>
-                        <div class="mb-3" id="editCycleConfigContainer">
-                            <!-- 动态生成的循环配置 -->
-                        </div>
-                        <!-- 添加“今天执行”选项 -->
                         <div class="mb-3">
-                            <label for="executeToday" class="form-label">今天执行</label>
-                            <div class="form-check">
-                                <input type="checkbox" class="form-check-input" id="executeToday">
-                                <label class="form-check-label" for="executeToday">是</label>
-                            </div>
+                            <label for="editExpiryDate" class="form-label">到期日期</label>
+                            <input type="date" class="form-control" id="editExpiryDate" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editReminderDays" class="form-label">提醒天数</label>
+                            <input type="number" class="form-control" id="editReminderDays" min="0" required>
                         </div>
                     </form>
                 </div>
@@ -101,10 +93,9 @@
             return null;
         };
 
-        // 获取循环列表
-        async function fetchCycles() {
+        // 获取所有续费项目
+        async function fetchRenewals() {
             try {
-                // 新增：从 cookie 中获取 session
                 const session = document.cookie.split('; ').find(c => c.trim().startsWith('session='));
                 if (!session) {
                     alert('未授权，请重新登录');
@@ -114,70 +105,45 @@
 
                 const sessionValue = session.split('=')[1];
 
-                const response = await fetch('/api/getCycles', {
-                    method: 'GET',
+                const response = await fetch('/api/getAllRenewals', {
+                    method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'session': sessionValue // 添加 session 参数
-                    }
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ session: sessionValue })
                 });
                 const data = await response.json();
                 if (data.success) {
-                    renderCycles(data.cycles);
+                    renderRenewals(data.data);
                 } else {
-                    alert(data.message || '加载循环失败');
+                    alert(data.message || '加载续费项目失败');
                 }
             } catch (error) {
-                console.error('Error fetching cycles:', error);
-                alert('加载循环失败，请重试');
+                console.error('Error fetching renewals:', error);
+                alert('加载续费项目失败，请重试');
             }
         }
 
-        // 新增函数：将循环配置转换为可读形式
-        function formatCycleConfig(cycleType, config) {
-            let formattedConfig = '';
-            if (cycleType === 'weekly') {
-                const daysOfWeek = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-                formattedConfig = `每周 ${daysOfWeek[config.day]}`;
-            } else if (cycleType === 'monthly') {
-                formattedConfig = `每月第 ${config.day} 天`;
-            } else if (cycleType === 'monthly_last') {
-                formattedConfig = `每月倒数第 ${config.day} 天`;
-            } else if (cycleType === 'daily') {
-                formattedConfig = '每天';
-            }
-            return formattedConfig;
-        }
-
-        // 修改 renderCycles 函数，使用 formatCycleConfig 函数
-        function renderCycles(cycles) {
-            const container = document.getElementById('cyclesContainer');
+        // 渲染续费项目卡片
+        function renderRenewals(renewals) {
+            const container = document.getElementById('renewalsContainer');
             container.innerHTML = ''; // 清空容器
 
-            cycles.forEach(cycle => {
+            renewals.forEach(renewal => {
                 const card = document.createElement('div');
-                card.className = 'card cycle-card';
-
-                // 修改: 格式化 next 日期为 MM/DD
-                const formattedNextDate = new Date(cycle.next).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' }).replace('/', '-');
-
-                // 修改: 使用 formatCycleConfig 函数格式化循环配置
-                const cycleConfig = JSON.parse(cycle.cycle); // 解析 cycle.cycle
-                const formattedCycleConfig = formatCycleConfig(cycleConfig.cycle, JSON.parse(cycleConfig.config || '{}'));
+                card.className = 'card renewal-card';
 
                 card.innerHTML = `
                     <div class="card-header">
-                        <h5>${cycle.name}</h5>
-                        <small class="text-muted">${cycle.note || '无备注'}</small>
+                        <h5>${renewal.name}</h5>
+                        <small class="text-muted">${renewal.description || '无描述'}</small>
                     </div>
-                    <div class="card-body cycle-details" style="display: none;">
-                        <p><strong>循环方式:</strong> ${formattedCycleConfig}</p>
-                        <p><strong>下次执行:</strong> ${formattedNextDate}</p>
+                    <div class="card-body renewal-details" style="display: none;">
+                        <p><strong>到期日期:</strong> ${renewal.expiry_date}</p>
+                        <p><strong>提醒天数:</strong> ${renewal.reminder_days} 天</p>
                         <div class="d-flex gap-2 mt-3">
-                            <button class="btn btn-outline-primary edit-btn" data-id="${cycle.id}">编辑</button>
-                            <button class="btn btn-danger delete-btn" data-id="${cycle.id}">删除</button>
-                            <button class="btn btn-success complete-current-btn" data-id="${cycle.id}">完成本次</button>
-                            <button class="btn btn-warning delay-btn" data-id="${cycle.id}">推迟一天</button>
+                            <button class="btn btn-outline-primary edit-btn" data-id="${renewal.id}">编辑</button>
+                            <button class="btn btn-danger delete-btn" data-id="${renewal.id}">删除</button>
                         </div>
                     </div>
                 `;
@@ -186,328 +152,159 @@
 
             // 使用事件委托机制绑定点击事件
             container.addEventListener('click', async (event) => {
-                const target = event.target.closest('.cycle-card');
+                const target = event.target.closest('.renewal-card');
                 if (target) {
-                    const details = target.querySelector('.cycle-details');
+                    const details = target.querySelector('.renewal-details');
                     details.style.display = details.style.display === 'none' ? 'block' : 'none';
                 }
 
                 // 绑定编辑按钮点击事件
                 if (event.target.classList.contains('edit-btn')) {
-                    const cycleId = event.target.dataset.id;
-                    const cycle = cycles.find(c => c.id === parseInt(cycleId));
-                    if (cycle) {
-                        document.getElementById('editCycleId').value = cycle.id;
-                        document.getElementById('editName').value = cycle.name;
-                        document.getElementById('editNote').value = cycle.note || '';
+                    const renewalId = event.target.dataset.id;
+                    const renewal = renewals.find(r => r.id === parseInt(renewalId));
+                    if (renewal) {
+                        document.getElementById('editRenewalId').value = renewal.id;
+                        document.getElementById('editName').value = renewal.name;
+                        document.getElementById('editDescription').value = renewal.description || '';
+                        document.getElementById('editExpiryDate').value = renewal.expiry_date.split('T')[0];
+                        document.getElementById('editReminderDays').value = renewal.reminder_days;
 
-                        // 修改: 解析 cycle.cycle 并设置默认选中值
-                        const cycleConfig = JSON.parse(cycle.cycle);
-                        document.getElementById('editCycleType').value = cycleConfig.cycle;
-
-                        // 初始化循环配置
-                        initCycleConfig(cycleConfig.cycle, JSON.parse(cycleConfig.config || '{}'));
+                        // 加载分类选项
+                        loadCategories(renewal.category_id);
 
                         const modal = new bootstrap.Modal(document.getElementById('editModal'));
                         modal.show();
                     }
-                    event.stopPropagation(); // 阻止事件冒泡
+                    event.stopPropagation();
                 }
 
                 // 绑定删除按钮点击事件
                 if (event.target.classList.contains('delete-btn')) {
-                    const cycleId = event.target.dataset.id;
+                    const renewalId = event.target.dataset.id;
 
-                    // 双重确认
-                    if (confirm('确定要删除该循环吗？此操作不可撤销！')) {
+                    if (confirm('确定要删除该续费项目吗？此操作不可撤销！')) {
                         try {
-                            const response = await fetch('/api/deleteCycle', {
-                                method: 'POST',
+                            const response = await fetch(`/api/deleteRenewals/${renewalId}`, {
+                                method: 'DELETE',
                                 headers: {
                                     'Content-Type': 'application/json'
                                 },
                                 body: JSON.stringify({
-                                    id: cycleId,
                                     session: getSessionFromCookie()
                                 })
                             });
                             const data = await response.json();
                             if (data.success) {
-                                alert('循环已删除');
-                                location.reload(); // 刷新页面
+                                alert('续费项目已删除');
+                                location.reload();
                             } else {
                                 alert(data.message || '删除失败');
                             }
                         } catch (error) {
-                            console.error('Error deleting cycle:', error);
+                            console.error('Error deleting renewal:', error);
                             alert('删除失败，请重试');
                         }
                     }
-                    event.stopPropagation(); // 阻止事件冒泡
+                    event.stopPropagation();
                 }
             });
-            
-            // 新增：绑定完成本次按钮的点击事件
-            document.getElementById('cyclesContainer').addEventListener('click', async (event) => {
-                if (event.target.classList.contains('complete-current-btn')) {
-                    const cycleId = event.target.dataset.id;
-                    const cycle = cycles.find(c => c.id === parseInt(cycleId));
-                    if (!cycle) {
-                        alert('未找到对应的循环');
-                        return;
-                    }
-
-                    const cycleConfig = JSON.parse(cycle.cycle);
-                    const currentNextDate = new Date(cycle.next);
-                    currentNextDate.setDate(currentNextDate.getDate() + 1);
-                    // 计算下下次执行日期
-                    const nextNextDate = calculateDoneDate(cycleConfig.cycle, JSON.parse(cycleConfig.config || '{}'), currentNextDate);
-
-                    try {
-                        const response = await fetch('/api/updateCycleNextTime', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                id: cycleId,
-                                nexttime: nextNextDate,
-                                session: getSessionFromCookie()
-                            })
-                        });
-                        const data = await response.json();
-                        if (data.success) {
-                            alert('已完成本次循环，下次执行时间已更新');
-                            location.reload(); // 刷新页面
-                        } else {
-                            alert(data.message || '更新失败');
-                        }
-                    } catch (error) {
-                        console.error('Error updating cycle next time:', error);
-                        alert('更新失败，请重试');
-                    }
-                }
-            });
-
-            // 为“推迟一天”按钮绑定点击事件
-            document.querySelectorAll('.delay-btn').forEach(button => {
-                button.addEventListener('click', async (event) => {
-                    const cycleId = event.target.dataset.id;
-
-                    if (!cycleId) {
-                        alert('未找到循环 ID');
-                        return;
-                    }
-
-                    try {
-                        const session = getSessionFromCookie(); // 从 cookie 中获取 session
-                        if (!session) {
-                            alert('未授权，请重新登录');
-                            window.location.href = '/login.html';
-                            return;
-                        }
-
-                        const response = await fetch('/api/delayCycleNextDate', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ id: cycleId, session })
-                        });
-
-                        const data = await response.json();
-
-                        if (data.success) {
-                            alert('循环的下次执行日期已推迟一天');
-                            location.reload(); // 刷新页面
-                        } else {
-                            alert(data.message || '推迟失败');
-                        }
-                    } catch (error) {
-                        console.error('Error delaying cycle next date:', error);
-                        alert('推迟失败，请重试');
-                    }
-                });
-            });
         }
 
-        // 初始化循环配置
-        function initCycleConfig(cycleType, config) {
-            const container = document.getElementById('editCycleConfigContainer');
-            container.innerHTML = ''; // 清空之前的配置
-
-            if (cycleType === 'weekly') {
-                container.innerHTML = `
-                    <label for="editWeeklyDay" class="form-label">选择星期几</label>
-                    <select class="form-select" id="editWeeklyDay" required>
-                        <option value="0" ${config.day === '0' ? 'selected' : ''}>星期日</option>
-                        <option value="1" ${config.day === '1' ? 'selected' : ''}>星期一</option>
-                        <option value="2" ${config.day === '2' ? 'selected' : ''}>星期二</option>
-                        <option value="3" ${config.day === '3' ? 'selected' : ''}>星期三</option>
-                        <option value="4" ${config.day === '4' ? 'selected' : ''}>星期四</option>
-                        <option value="5" ${config.day === '5' ? 'selected' : ''}>星期五</option>
-                        <option value="6" ${config.day === '6' ? 'selected' : ''}>星期六</option>
-                    </select>
-                `;
-            } else if (cycleType === 'monthly') {
-                container.innerHTML = `
-                    <label for="editMonthlyDay" class="form-label">选择每月第几天</label>
-                    <input type="number" class="form-control" id="editMonthlyDay" min="1" max="31" value="${config.day || ''}" required>
-                `;
-            } else if (cycleType === 'monthly_last') {
-                container.innerHTML = `
-                    <label for="editMonthlyLastDay" class="form-label">选择每月倒数第几天</label>
-                    <input type="number" class="form-control" id="editMonthlyLastDay" min="1" max="31" value="${config.day || ''}" required>
-                `;
-            } else if (cycleType === 'daily') {
-                container.innerHTML = '';
-            }
-        }
-
-        // 添加事件监听器，当循环方式改变时重新初始化配置
-        document.getElementById('editCycleType').addEventListener('change', (e) => {
-            const cycleType = e.target.value;
-            const config = {}; // 默认为空配置
-            initCycleConfig(cycleType, config);
-        });
-
-        // 新增：判断日期是否符合循环配置
-        function isCycleMatch(cycle, config, date) {
-            console.log(date);
-            // 修改：正确解析日期
-            const year = parseInt(date.slice(0, 4), 10);
-            const month = parseInt(date.slice(4, 6), 10);
-            const day = parseInt(date.slice(6, 8), 10);
-
-            switch (cycle) {
-                case 'daily':
-                    return true; // 每日循环，默认匹配
-                case 'weekly':
-                    const weekday = new Date(year, month - 1, day).getDay(); // 获取星期几（0-6）
-                    const parsedConfig = JSON.parse(config); // 解析 config 字符串
-                    const daysOfWeek = parsedConfig.day.split(',').map(Number); // 支持多个星期几
-                    return daysOfWeek.includes(weekday);
-                case 'monthly':
-                    return day === Number(JSON.parse(config).day);
-                case 'monthly_last': // 新增：支持每月倒数第几天
-                    const lastDayOfMonth = new Date(year, month, 0).getDate(); // 当月最后一天
-                    return day === Number(lastDayOfMonth - JSON.parse(config).day + 1);
-                default:
-                    return false;
-            }
-        }
-        // 计算当前执行日期后的下次执行日期
-        function calculateDoneDate(cycleType, config, currentNextDate) {
-            let nextDate = new Date(currentNextDate); // 从当前显示的下次执行日期开始
-            nextDate.setDate(nextDate.getDate() + 1);
-            let dayCount = 0;
-            //nextDate格式：YYYYMMDD 
-            while (!isCycleMatch(cycleType, JSON.stringify(config), nextDate.toISOString().split('T')[0].replace(/-/g, '')) && dayCount <= 365) {
-                nextDate.setDate(nextDate.getDate() + 1);
-                dayCount++;
-            }
-            // 格式化为 ISO 格式（时间部分固定为 00:00:00）
-            return nextDate ? `${nextDate.toISOString().split('T')[0]}T00:00:00` : null;
-        }
-
-        // 计算下次执行日期
-        function calculateNextDate(cycleType, config) {
-            const today = new Date();
-            let nextDate = null;
-
-            if (cycleType === 'weekly') {
-                const targetDay = parseInt(config.day, 10);
-                let daysToAdd = (targetDay - today.getDay() + 7) % 7;
-                if (daysToAdd === 0) daysToAdd = 7; // 如果今天就是目标日期，则跳到下一周
-                nextDate = new Date(today);
-                nextDate.setDate(today.getDate() + daysToAdd);
-            } else if (cycleType === 'monthly') {
-                const targetDay = parseInt(config.day, 10) + 1;
-                nextDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
-                if (nextDate < today) {
-                    nextDate.setMonth(today.getMonth() + 1); // 如果目标日期已经过去，则跳到下一个月
-                }
-            } else if (cycleType === 'monthly_last') {
-                const targetDay = parseInt(config.day, 10) - 1;
-                nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 0); // 当月最后一天
-                nextDate.setDate(nextDate.getDate() - targetDay + 1); // 倒数第几天
-                if (nextDate < today) {
-                    nextDate.setMonth(today.getMonth() + 1); // 如果目标日期已经过去，则跳到下一个月
-                }
-            } else if (cycleType === 'daily') {
-                nextDate = new Date(today);
-                nextDate.setDate(today.getDate() + 1);
-            }
-
-            // 格式化为 ISO 格式（时间部分固定为 00:00:00）
-            return nextDate ? `${nextDate.toISOString().split('T')[0]}T00:00:00` : null;
-        }
-
-        // 保存编辑循环
-        document.getElementById('saveEdit').addEventListener('click', async () => {
-            const cycleId = document.getElementById('editCycleId').value;
-            const name = document.getElementById('editName').value;
-            const note = document.getElementById('editNote').value;
-            const cycleType = document.getElementById('editCycleType').value;
-
-            // 验证循环方式是否已选择
-            if (!cycleType || cycleType === '') {
-                alert('请选择循环方式');
-                return;
-            }
-
-            // 获取循环配置
-            let cycleConfig = {};
-            if (cycleType === 'weekly') {
-                cycleConfig.day = document.getElementById('editWeeklyDay').value;
-            } else if (cycleType === 'monthly') {
-                cycleConfig.day = document.getElementById('editMonthlyDay').value;
-            } else if (cycleType === 'monthly_last') {
-                cycleConfig.day = document.getElementById('editMonthlyLastDay').value;
-            }
-
-            // 计算下次执行日期
-            let nextDate = calculateNextDate(cycleType, cycleConfig);
-
-            // 修改：处理“今天执行”选项
-            const executeToday = document.getElementById('executeToday').checked;
-            if (executeToday) {
-                const today = new Date();
-                nextDate = `${today.toISOString().split('T')[0]}T00:00:00`;
-            }
+        // 加载续费分类选项
+        async function loadCategories(selectedId = null) {
+            const categorySelect = document.getElementById('editCategory');
+            categorySelect.innerHTML = ''; // 清空现有选项
 
             try {
-                const response = await fetch('/api/updateCycle', {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getAllRenewalCategories', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        id: cycleId,
-                        name,
-                        note,
-                        cycle: cycleType,
-                        next: nextDate,
-                        config: JSON.stringify(cycleConfig),
-                        session: getSessionFromCookie()
+                        session: session
                     })
                 });
                 const data = await response.json();
                 if (data.success) {
-                    alert('循环已更新');
-                    location.reload(); // 刷新页面
+                    data.data.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        if (category.id === selectedId) {
+                            option.selected = true;
+                        }
+                        categorySelect.appendChild(option);
+                    });
+                } else {
+                    alert(data.message || '加载分类失败');
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                alert('加载分类失败，请重试');
+            }
+        }
+
+        // 保存编辑续费项目
+        document.getElementById('saveEdit').addEventListener('click', async () => {
+            const renewalId = document.getElementById('editRenewalId').value;
+            const name = document.getElementById('editName').value;
+            const description = document.getElementById('editDescription').value;
+            const categoryId = document.getElementById('editCategory').value;
+            const expiryDate = document.getElementById('editExpiryDate').value;
+            const reminderDays = document.getElementById('editReminderDays').value;
+
+            // 验证必填字段
+            if (!name || !categoryId || !expiryDate || reminderDays === '') {
+                alert('请填写所有必填字段');
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch(`/api/updateRenewals/${renewalId}`, {
+                    method: 'PUT', // 修改为 PUT 方法
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        categoryId,
+                        expiryDate,
+                        reminderDays,
+                        session
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('续费项目已更新');
+                    location.reload();
                 } else {
                     alert(data.message || '更新失败');
                 }
             } catch (error) {
-                console.error('Error updating cycle:', error);
+                console.error('Error updating renewal:', error);
                 alert('更新失败，请重试');
             }
         });
 
-        // 页面加载时获取循环列表
+        // 页面加载时获取续费项目
         document.addEventListener('DOMContentLoaded', () => {
-            fetchCycles();
+            fetchRenewals();
         });
     </script>
 </body>
