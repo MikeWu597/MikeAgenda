@@ -746,30 +746,41 @@
                     timelineContainer.appendChild(timelineItem);
                 });
 
-                // 右侧（待办事项）：只显示截止日期，不显示计划时间
-                items.forEach(item => {
-                    if (!item.done && !item.archived && !item.planned_time) {
-                        const card = document.createElement('div');
-                        card.className = 'card mb-3';
+                // 待办事项：只显示截止日期，不显示计划时间
+                // 过滤出待办事项并按截止时间排序
+                const todoItems = items.filter(item => !item.done && !item.archived && !item.planned_time);
+                
+                // 自定义排序函数
+                todoItems.sort((a, b) => {
+                    // 如果a没有截止时间，排在后面
+                    if (!a.deadline) return 1;
+                    // 如果b没有截止时间，排在前面
+                    if (!b.deadline) return -1;
+                    // 如果都有截止时间，按日期排序
+                    return new Date(a.deadline) - new Date(b.deadline);
+                });
 
-                        // 解析分类信息
-                        const categoryIds = JSON.parse(item.category || '[]');
-                        const categoryBadges = categoryIds.map(id => {
-                            return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                        }).join('');
+                todoItems.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'card mb-3';
 
-                        card.innerHTML = `
-                            <div class="card-header">
-                                <div class="d-flex align-items-center">
-                                    ${categoryBadges}
-                                    <h5 class="ms-2">${item.title}</h5>
-                                </div>
-                                ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
+                    // 解析分类信息
+                    const categoryIds = JSON.parse(item.category || '[]');
+                    const categoryBadges = categoryIds.map(id => {
+                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                    }).join('');
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div class="d-flex align-items-center">
+                                ${categoryBadges}
+                                <h5 class="ms-2">${item.title}</h5>
                             </div>
-                            ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
-                        `;
-                        todoContainer.appendChild(card);
-                    }
+                            ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
+                        </div>
+                        ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
+                    `;
+                    todoContainer.appendChild(card);
                 });
             }
 
@@ -879,7 +890,23 @@
                             return aStart[0] - bStart[0] || aStart[1] - bStart[1];
                         });
 
-                        todayCourses.forEach(course => {
+                        // 获取当前日期以判断是否为今天
+                        const now = new Date();
+                        const isToday = selectedDate.toDateString() === now.toDateString();
+
+                        // 过滤课程，如果为当天则过滤掉已结束的课程
+                        const displayCourses = isToday 
+                            ? todayCourses.filter(course => {
+                                // 解析课程结束时间
+                                const [endHour, endMinute] = course.end_time.split(':').map(Number);
+                                const endTime = new Date();
+                                endTime.setHours(endHour, endMinute, 0, 0);
+                                // 只显示结束时间未到的课程
+                                return endTime > now;
+                            })
+                            : todayCourses;
+
+                        displayCourses.forEach(course => {
                             const card = document.createElement('div');
                             card.className = 'card mb-3';
 
