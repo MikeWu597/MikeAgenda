@@ -429,6 +429,27 @@
             for (let i = 1; i <= daysInMonth; i++) {
                 const div = document.createElement('div');
                 div.textContent = i;
+                div.style.cursor = 'pointer';
+                div.style.padding = '5px';
+                div.style.borderRadius = '4px';
+                div.addEventListener('mouseenter', () => {
+                    div.style.backgroundColor = '#f0f0f0';
+                });
+                div.addEventListener('mouseleave', () => {
+                    div.style.backgroundColor = '';
+                });
+                
+                // Add click event to select date
+                div.addEventListener('click', () => {
+                    const selectedDate = new Date(year, month, i + 1);
+                    const formattedDate = selectedDate.toISOString().split('T')[0].replace(/-/g, '');
+                    
+                    // Update URL with selected date
+                    const urlParams = new URLSearchParams(window.location.search);
+                    urlParams.set('date', formattedDate);
+                    window.location.search = urlParams.toString();
+                });
+                
                 if (i === now.getDate() && new Date().getMonth() === month && new Date().getFullYear() === year) {
                     div.style.fontWeight = 'bold';
                     div.style.color = 'blue';
@@ -441,9 +462,18 @@
             calendarStyle.textContent = `
                 #calendar {
                     font-size: 20px; /* 放大字体 */
+                    grid-template-columns: repeat(7, 1fr);
+                    gap: 8px;
                 }
                 .day-name {
                     font-size: 20px; /* 放大星期字体 */
+                    padding: 5px;
+                }
+                #calendar > div {
+                    transition: all 0.2s ease;
+                }
+                #calendar > div:hover {
+                    transform: scale(1.1);
                 }
             `;
             document.head.appendChild(calendarStyle);
