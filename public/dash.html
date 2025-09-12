@@ -954,18 +954,18 @@
 
                         card.innerHTML = `
                             <div class="card-header">
-                                <strong>${course.start_time} - ${course.end_time}</strong>
+                                <div class="d-flex align-items-center">
+                                    <strong>${course.start_time} - ${course.end_time}</strong>
+                                    <span class="badge me-2 ms-2" style="background-color: ${course.course_color};">${course.course_code}</span>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <div class="d-flex align-items-center mb-2">
-                                    <span class="badge me-2" style="background-color: ${course.course_color};">${course.course_code}</span>
-                                    <h4 class="mb-0">${course.course_name}</h4>
+                                    <h5 class="mb-0">${course.course_name}</h5>
                                 </div>
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-geo-alt-fill text me-1"></i>
                                     <span class="me-3">${course.venue}</span>
-                                    <i class="bi bi-person-fill text me-1"></i>
-                                    <span>${course.instructor_name}</span>
                                 </div>
                             </div>
                         `;
