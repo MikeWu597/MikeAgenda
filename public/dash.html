@@ -704,277 +704,293 @@
                             <div class="d-flex align-items-center">
                                 ${categoryBadges}
                                 <h5 class="ms-2">${cycle.name}</h5>
-                            </div>
                         </div>
-                        ${cycle.note ? `<div class="card-body">
-                            <p>${cycle.note}</p>
-                            </div>` : ''}
-                        
-                    `;
-                    cycleContainer.appendChild(card);
+                    </div>
+                    ${cycle.note ? `<div class="card-body">
+                        <p>${cycle.note}</p>
+                        </div>` : ''}
+                    
+                `;
+                cycleContainer.appendChild(card);
+            });
+            
+            // 更新循环标题显示数量
+            const cycleTitle = document.getElementById('cycleTitle');
+            cycleTitle.textContent = `循环（${cycles.length}）`;
+        }
+
+        // 修改：更新 getCategoryColor 和 getCategoryName 函数
+        function getCategoryColor(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.color : '#000'; // 默认黑色
+        }
+
+        function getCategoryName(categoryId) {
+            const category = allCategories.find(c => c.id === categoryId);
+            return category ? category.name : '未知分类'; // 默认名称
+        }
+
+        // 修改：更新 renderItems 函数逻辑
+        async function renderItems(items, targetDate) {
+            await fetchCategories();
+            const todayPlanContainer = document.getElementById('todayPlanContainer');
+            const todoContainer = document.getElementById('todoContainer');
+            const timelineContainer = document.getElementById('timelineContainer');
+
+            // 清空容器
+            todayPlanContainer.innerHTML = '<div class="column-header" id="dayTitle">当日计划</div>';
+            todoContainer.innerHTML = '<div class="column-header">其他事项</div>';
+            timelineContainer.innerHTML = ''; // 清空时间轴
+
+            // 提取当天计划的事项并按时间排序
+            const todayItems = items
+                .filter(item => item.planned_time && isSameDay(item.planned_time, targetDate))
+                .sort((a, b) => new Date(a.planned_time) - new Date(b.planned_time));
+
+            todayItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3';
+
+                // 解析分类信息
+                const categoryIds = JSON.parse(item.category || '[]');
+                const categoryBadges = categoryIds.map(id => {
+                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                }).join('');
+
+                // 左侧（当天计划）：只显示计划时间，不显示截止日期
+                const formattedTime = new Date(item.planned_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                card.innerHTML = `
+                    <div class="card-header">
+                            <strong>${formattedTime}</strong>
+                    </div><div class="card-body">
+                    
+                    <h5 class="ms-2">${categoryBadges}${item.title}</h5>
+                    ${item.description ? `<p>${item.description}</p>` : ''}
+                    </div>
+                `;
+                todayPlanContainer.appendChild(card);
+
+                // 新增：在时间轴上添加时间点
+                const timelineItem = document.createElement('div');
+                timelineItem.className = 'timeline-item';
+                timelineItem.textContent = formattedTime;
+                timelineItem.addEventListener('click', () => {
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 });
-            }
+                timelineContainer.appendChild(timelineItem);
+            });
 
-            // 修改：更新 getCategoryColor 和 getCategoryName 函数
-            function getCategoryColor(categoryId) {
-                const category = allCategories.find(c => c.id === categoryId);
-                return category ? category.color : '#000'; // 默认黑色
-            }
+            // 更新当日计划标题显示数量
+            const dayTitle = document.getElementById('dayTitle');
+            dayTitle.innerHTML = `当日计划（${todayItems.length}）`;
 
-            function getCategoryName(categoryId) {
-                const category = allCategories.find(c => c.id === categoryId);
-                return category ? category.name : '未知分类'; // 默认名称
-            }
+            // 待办事项：只显示截止日期，不显示计划时间
+            // 过滤出待办事项并按截止时间排序
+            const todoItems = items.filter(item => !item.done && !item.archived && !item.planned_time);
+            
+            // 自定义排序函数
+            todoItems.sort((a, b) => {
+                // 如果a没有截止时间，排在后面
+                if (!a.deadline) return 1;
+                // 如果b没有截止时间，排在前面
+                if (!b.deadline) return -1;
+                // 如果都有截止时间，按日期排序
+                return new Date(a.deadline) - new Date(b.deadline);
+            });
 
-            // 修改：更新 renderItems 函数逻辑
-            async function renderItems(items, targetDate) {
-                await fetchCategories();
-                const todayPlanContainer = document.getElementById('todayPlanContainer');
-                const todoContainer = document.getElementById('todoContainer');
-                const timelineContainer = document.getElementById('timelineContainer');
+            todoItems.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3';
 
-                // 清空容器
-                todayPlanContainer.innerHTML = '<div class="column-header">当日计划</div>';
-                todoContainer.innerHTML = '<div class="column-header">其他事项</div>';
-                timelineContainer.innerHTML = ''; // 清空时间轴
+                // 解析分类信息
+                const categoryIds = JSON.parse(item.category || '[]');
+                const categoryBadges = categoryIds.map(id => {
+                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
+                }).join('');
 
-                // 提取当天计划的事项并按时间排序
-                const todayItems = items
-                    .filter(item => item.planned_time && isSameDay(item.planned_time, targetDate))
-                    .sort((a, b) => new Date(a.planned_time) - new Date(b.planned_time));
-
-                todayItems.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card mb-3';
-
-                    // 解析分类信息
-                    const categoryIds = JSON.parse(item.category || '[]');
-                    const categoryBadges = categoryIds.map(id => {
-                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                    }).join('');
-
-                    // 左侧（当天计划）：只显示计划时间，不显示截止日期
-                    const formattedTime = new Date(item.planned_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    card.innerHTML = `
-                        <div class="card-header">
-                                <strong>${formattedTime}</strong>
-                        </div><div class="card-body">
-                        
-                        <h5 class="ms-2">${categoryBadges}${item.title}</h5>
-                        ${item.description ? `<p>${item.description}</p>` : ''}
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div class="d-flex align-items-center">
+                            ${categoryBadges}
+                            <h5 class="ms-2">${item.title}</h5>
                         </div>
-                    `;
-                    todayPlanContainer.appendChild(card);
+                        ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
+                    </div>
+                    ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
+                `;
+                todoContainer.appendChild(card);
+            });
+            
+            // 更新其他事项标题显示数量
+            const todoTitle = todoContainer.querySelector('.column-header');
+            todoTitle.textContent = `其他事项（${todoItems.length}）`;
+        }
 
-                    // 新增：在时间轴上添加时间点
-                    const timelineItem = document.createElement('div');
-                    timelineItem.className = 'timeline-item';
-                    timelineItem.textContent = formattedTime;
-                    timelineItem.addEventListener('click', () => {
-                        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    });
-                    timelineContainer.appendChild(timelineItem);
-                });
-
-                // 待办事项：只显示截止日期，不显示计划时间
-                // 过滤出待办事项并按截止时间排序
-                const todoItems = items.filter(item => !item.done && !item.archived && !item.planned_time);
-                
-                // 自定义排序函数
-                todoItems.sort((a, b) => {
-                    // 如果a没有截止时间，排在后面
-                    if (!a.deadline) return 1;
-                    // 如果b没有截止时间，排在前面
-                    if (!b.deadline) return -1;
-                    // 如果都有截止时间，按日期排序
-                    return new Date(a.deadline) - new Date(b.deadline);
-                });
-
-                todoItems.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'card mb-3';
-
-                    // 解析分类信息
-                    const categoryIds = JSON.parse(item.category || '[]');
-                    const categoryBadges = categoryIds.map(id => {
-                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                    }).join('');
-
-                    card.innerHTML = `
-                        <div class="card-header">
-                            <div class="d-flex align-items-center">
-                                ${categoryBadges}
-                                <h5 class="ms-2">${item.title}</h5>
-                            </div>
-                            ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
-                        </div>
-                        ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
-                    `;
-                    todoContainer.appendChild(card);
-                });
-            }
-
-            // 修改：在页面加载时获取所有数据
-            async function initializePage() {
-                await fetchCategories(); // 获取分类
-                await fetchRenewalCategories(); // 获取续费分类
-                await fetchItems();       // 获取事项
-                await fetchTodayCycles(formattedDate); // 获取今日循环
-                await fetchTodayRenewals(); // 获取今日续费项目
-                await loadTodaySchedule(); // 加载今日课程表
-            }
+        // 修改：在页面加载时获取所有数据
+        async function initializePage() {
+            await fetchCategories(); // 获取分类
+            await fetchRenewalCategories(); // 获取续费分类
+            await fetchItems();       // 获取事项
+            await fetchTodayCycles(formattedDate); // 获取今日循环
+            await fetchTodayRenewals(); // 获取今日续费项目
+            await loadTodaySchedule(); // 加载今日课程表
+        }
 
             
 
-            // 获取当前日期的年、月、日
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const day = String(currentDate.getDate()).padStart(2, '0');
+        // 获取当前日期的年、月、日
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
 
-            // 获取事项列表
-            async function fetchItems() {
-                try {
-                    const response = await fetch('/api/getItems', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'session': getSessionFromCookie() // 添加 session 参数
-                        }
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        await renderItems(data.items, formattedDate);
-                    } else {
-                        alert(data.message || '加载事项失败');
+        // 获取事项列表
+        async function fetchItems() {
+            try {
+                const response = await fetch('/api/getItems', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': getSessionFromCookie() // 添加 session 参数
                     }
-                } catch (error) {
-                    console.error('Error fetching items:', error);
-                    alert('加载事项失败，请重试');
+                });
+                const data = await response.json();
+                if (data.success) {
+                    await renderItems(data.items, formattedDate);
+                } else {
+                    alert(data.message || '加载事项失败');
                 }
+            } catch (error) {
+                console.error('Error fetching items:', error);
+                alert('加载事项失败，请重试');
             }
-
-            // 获取已完成事项列表
-            async function fetchTodayCycles(date) {
-                try {
-                    const response = await fetch('/api/getTodayCycles', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'session': getSessionFromCookie() // 添加 session 参数
-                        },
-                        body: JSON.stringify({ date })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        renderCycles(data.cycles);
-                    } else {
-                        console.error(data.message || '加载循环事项失败');
-                    }
-                } catch (error) {
-                    console.error('Error fetching today\'s cycles:', error);
-                    alert('加载循环事项失败，请重试');
-                }
-            }
-
-            // 修改：在 scheduleContainer 中加载当天课程表
-            async function loadTodaySchedule() {
-                const scheduleContainer = document.getElementById('scheduleContainer');
-                scheduleContainer.innerHTML = '<div class="column-header">' + ' 课表</div>'; // 添加带日期的标题
-
-                try {
-                    const session = getSessionFromCookie();
-                    if (!session) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
-                        return;
-                    }
-
-                    // 解析 formattedDate (YYYYMMDD 格式)
-                    const year = parseInt(formattedDate.substring(0, 4), 10);
-                    const month = parseInt(formattedDate.substring(4, 6), 10) - 1; // 月份从0开始
-                    const day = parseInt(formattedDate.substring(6, 8), 10);
-                    
-                    // 创建日期对象
-                    const selectedDate = new Date(year, month, day);
-                    
-                    // 获取星期几（0-6，0是周日）
-                    const dayOfWeek = selectedDate.getDay();
-                    
-                    // 修改API请求，传递日期参数以获取当天课程
-                    const response = await fetch(`/api/getCourses`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'session': session
-                        }
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay()  && course.is_active);
-
-                        todayCourses.sort((a, b) => {
-                            const aStart = a.start_time.split(':').map(Number);
-                            const bStart = b.start_time.split(':').map(Number);
-                            return aStart[0] - bStart[0] || aStart[1] - bStart[1];
-                        });
-
-                        // 获取当前日期以判断是否为今天
-                        const now = new Date();
-                        const isToday = selectedDate.toDateString() === now.toDateString();
-
-                        // 过滤课程，如果为当天则过滤掉已结束的课程
-                        const displayCourses = isToday 
-                            ? todayCourses.filter(course => {
-                                // 解析课程结束时间
-                                const [endHour, endMinute] = course.end_time.split(':').map(Number);
-                                const endTime = new Date();
-                                endTime.setHours(endHour, endMinute, 0, 0);
-                                // 只显示结束时间未到的课程
-                                return endTime > now;
-                            })
-                            : todayCourses;
-
-                        displayCourses.forEach(course => {
-                            const card = document.createElement('div');
-                            card.className = 'card mb-3';
-
-                            card.innerHTML = `
-                                <div class="card-header">
-                                    <strong>${course.start_time} - ${course.end_time}</strong>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <span class="badge me-2" style="background-color: ${course.course_color};">${course.course_code}</span>
-                                        <h4 class="mb-0">${course.course_name}</h4>
-                                    </div>
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-geo-alt-fill text me-1"></i>
-                                        <span class="me-3">${course.venue}</span>
-                                        <i class="bi bi-person-fill text me-1"></i>
-                                        <span>${course.instructor_name}</span>
-                                    </div>
-                                </div>
-                            `;
-
-                            scheduleContainer.appendChild(card);
-                        });
-                    } else {
-                        alert(data.message || '加载课程失败');
-                    }
-                } catch (error) {
-                    console.error('Error loading today schedule:', error);
-                    alert('加载课程失败，请重试');
-                }
-            }
-
-            document.addEventListener('DOMContentLoaded', () => {
-                loadTodaySchedule();
-            });
-
-            initializePage();
         }
+
+        // 获取已完成事项列表
+        async function fetchTodayCycles(date) {
+            try {
+                const response = await fetch('/api/getTodayCycles', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': getSessionFromCookie() // 添加 session 参数
+                    },
+                    body: JSON.stringify({ date })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    renderCycles(data.cycles);
+                } else {
+                    console.error(data.message || '加载循环事项失败');
+                }
+            } catch (error) {
+                console.error('Error fetching today\'s cycles:', error);
+                alert('加载循环事项失败，请重试');
+            }
+        }
+
+        // 修改：在 scheduleContainer 中加载当天课程表
+        async function loadTodaySchedule() {
+            const scheduleContainer = document.getElementById('scheduleContainer');
+            scheduleContainer.innerHTML = '<div class="column-header">' + ' 课表</div>'; // 添加带日期的标题
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                // 解析 formattedDate (YYYYMMDD 格式)
+                const year = parseInt(formattedDate.substring(0, 4), 10);
+                const month = parseInt(formattedDate.substring(4, 6), 10) - 1; // 月份从0开始
+                const day = parseInt(formattedDate.substring(6, 8), 10);
+                
+                // 创建日期对象
+                const selectedDate = new Date(year, month, day);
+                
+                // 获取星期几（0-6，0是周日）
+                const dayOfWeek = selectedDate.getDay();
+                
+                // 修改API请求，传递日期参数以获取当天课程
+                const response = await fetch(`/api/getCourses`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay()  && course.is_active);
+
+                    todayCourses.sort((a, b) => {
+                        const aStart = a.start_time.split(':').map(Number);
+                        const bStart = b.start_time.split(':').map(Number);
+                        return aStart[0] - bStart[0] || aStart[1] - bStart[1];
+                    });
+
+                    // 获取当前日期以判断是否为今天
+                    const now = new Date();
+                    const isToday = selectedDate.toDateString() === now.toDateString();
+
+                    // 过滤课程，如果为当天则过滤掉已结束的课程
+                    const displayCourses = isToday 
+                        ? todayCourses.filter(course => {
+                            // 解析课程结束时间
+                            const [endHour, endMinute] = course.end_time.split(':').map(Number);
+                            const endTime = new Date();
+                            endTime.setHours(endHour, endMinute, 0, 0);
+                            // 只显示结束时间未到的课程
+                            return endTime > now;
+                        })
+                        : todayCourses;
+
+                    displayCourses.forEach(course => {
+                        const card = document.createElement('div');
+                        card.className = 'card mb-3';
+
+                        card.innerHTML = `
+                            <div class="card-header">
+                                <strong>${course.start_time} - ${course.end_time}</strong>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-2">
+                                    <span class="badge me-2" style="background-color: ${course.course_color};">${course.course_code}</span>
+                                    <h4 class="mb-0">${course.course_name}</h4>
+                                </div>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-geo-alt-fill text me-1"></i>
+                                    <span class="me-3">${course.venue}</span>
+                                    <i class="bi bi-person-fill text me-1"></i>
+                                    <span>${course.instructor_name}</span>
+                                </div>
+                            </div>
+                        `;
+
+                        scheduleContainer.appendChild(card);
+                    });
+                    
+                    // 更新课表标题显示数量
+                    const scheduleTitle = scheduleContainer.querySelector('.column-header');
+                    scheduleTitle.textContent = `课表（${displayCourses.length}）`;
+                } else {
+                    alert(data.message || '加载课程失败');
+                }
+            } catch (error) {
+                console.error('Error loading today schedule:', error);
+                alert('加载课程失败，请重试');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTodaySchedule();
+        });
+
+        initializePage();
+    }
         // 新增：读取自动刷新时间的 Cookie
         function getCookie(name) {
             const cookies = document.cookie.split('; ');
@@ -1049,6 +1065,8 @@
             const renewalContainer = document.getElementById('renewalContainer');
             renewalContainer.innerHTML = ''; // 清空容器
 
+            let displayedRenewals = 0; // 记录实际显示的续费项目数量
+
             renewals.forEach(renewal => {
                 // 解析到期日期
                 const expiryDate = new Date(renewal.expiry_date);
@@ -1061,6 +1079,8 @@
                 
                 // 只有当提醒日期 <= 显示日期时才显示
                 if (reminderDate <= displayDate) {
+                    displayedRenewals++; // 增加计数
+                    
                     const card = document.createElement('div');
                     card.className = 'card mb-3';
 
@@ -1090,6 +1110,10 @@
                     renewalContainer.appendChild(card);
                 }
             });
+            
+            // 更新续费标题显示数量
+            const renewalTitle = document.getElementById('renewalTitle');
+            renewalTitle.textContent = `续费（${displayedRenewals}）`;
         }
 
         // 新增：获取当天续费项目
