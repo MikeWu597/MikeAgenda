@@ -716,7 +716,7 @@
             
             // 更新循环标题显示数量
             const cycleTitle = document.getElementById('cycleTitle');
-            cycleTitle.textContent = `循环（${cycles.length}）`;
+            cycleTitle.innerHTML = `循环 <span class="badge bg-primary">${cycles.length}</span>`;
         }
 
         // 修改：更新 getCategoryColor 和 getCategoryName 函数
@@ -782,7 +782,7 @@
 
             // 更新当日计划标题显示数量
             const dayTitle = document.getElementById('dayTitle');
-            dayTitle.innerHTML = `当日计划（${todayItems.length}）`;
+            dayTitle.innerHTML = `当日计划 <span class="badge bg-primary">${todayItems.length}</span>`;
 
             // 待办事项：只显示截止日期，不显示计划时间
             // 过滤出待办事项并按截止时间排序
@@ -823,7 +823,7 @@
             
             // 更新其他事项标题显示数量
             const todoTitle = todoContainer.querySelector('.column-header');
-            todoTitle.textContent = `其他事项（${todoItems.length}）`;
+            todoTitle.innerHTML = `其他事项 <span class="badge bg-primary">${todoItems.length}</span>`;
         }
 
         // 修改：在页面加载时获取所有数据
@@ -975,7 +975,7 @@
                     
                     // 更新课表标题显示数量
                     const scheduleTitle = scheduleContainer.querySelector('.column-header');
-                    scheduleTitle.textContent = `课表（${displayCourses.length}）`;
+                    scheduleTitle.innerHTML = `课表 <span class="badge bg-primary">${displayCourses.length}</span>`;
                 } else {
                     alert(data.message || '加载课程失败');
                 }
@@ -1113,7 +1113,7 @@
             
             // 更新续费标题显示数量
             const renewalTitle = document.getElementById('renewalTitle');
-            renewalTitle.textContent = `续费（${displayedRenewals}）`;
+            renewalTitle.innerHTML = `续费 <span class="badge bg-primary">${displayedRenewals}</span>`;
         }
 
         // 新增：获取当天续费项目
