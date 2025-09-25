@@ -176,6 +176,7 @@
             display: flex;
             gap: 0;
             margin-top: 20px;
+            flex-wrap: wrap; /* 新增：允许换行 */
         }
 
         .column-container {
@@ -183,20 +184,38 @@
             border-radius: 8px;
             padding: 15px;
             margin: 0;
+            flex: 1 1 45%; /* 修改：允许弹性伸缩 */
+            min-width: 300px; /* 新增：设置最小宽度 */
         }
 
         .column-container:first-child {
-            flex: 6; /* 修改：左侧变窄 */
+            /* 修改：移除固定比例，使用弹性布局 */
             border-right: none;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }
 
         .column-container:last-child {
-            flex: 6; /* 修改：右侧变宽 */
+            /* 修改：移除固定比例，使用弹性布局 */
             border-left: none;
             border-top-left-radius: 0;
             border-bottom-left-radius: 0;
+        }
+
+        /* 新增：响应式断点，当屏幕宽度小于768px时纵向排列 */
+        @media (max-width: 768px) {
+            .container-row {
+                flex-direction: column;
+            }
+            
+            .column-container,
+            .column-container:first-child,
+            .column-container:last-child {
+                flex: 1 1 100%;
+                border-radius: 8px;
+                border: 1px solid #ddd;
+                margin-bottom: 15px;
+            }
         }
 
         .column-header {
@@ -268,6 +287,10 @@
         <div class="footer-menu-btn" id="createMenuBtn">
             <i class="bi bi-plus"></i>
         </div>
+        <!-- 新增: 工具菜单按钮 -->
+        <div class="footer-menu-btn" id="toolMenuBtn">
+            <i class="bi bi-wrench"></i>
+        </div>
     </div>
 
     <!-- 新增: 页脚小字链接 -->
@@ -308,6 +331,30 @@
         </div>
         <div class="expanded-menu-btn" id="createRenewalBtn">
             <i class="bi bi-file-earmark-spreadsheet"></i>
+        </div>
+    </div>
+
+    <!-- 新增: 工具扩展菜单 -->
+    <div class="expanded-menu" id="toolExpandedMenu">
+        <div class="expanded-menu-btn" id="toolBtn1">
+            <i class="bi bi-train-front" style="position: relative;">
+                <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; 
+                    text-shadow: 
+                        -2px -2px 0 #007bff,  
+                        2px -2px 0 #007bff,
+                        -2px 2px 0 #007bff,
+                        2px 2px 0 #007bff;">H</span>
+            </i>
+        </div>
+        <div class="expanded-menu-btn" id="toolBtn2">
+            <i class="bi bi-train-front" style="position: relative;">
+                <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold;
+                    text-shadow: 
+                        -2px -2px 0 #007bff,  
+                        2px -2px 0 #007bff,
+                        -2px 2px 0 #007bff,
+                        2px 2px 0 #007bff;">A</span>
+            </i>
         </div>
     </div>
 
@@ -485,6 +532,10 @@
             const viewExpandedMenu = document.getElementById('viewExpandedMenu');
             const createExpandedMenu = document.getElementById('createExpandedMenu');
 
+            // 新增: 获取工具菜单元素
+            const toolMenuBtn = document.getElementById('toolMenuBtn');
+            const toolExpandedMenu = document.getElementById('toolExpandedMenu');
+
             // 新增：获取顶部菜单按钮
             const prevDayBtn = document.getElementById('prevDayBtn');
             const nextDayBtn = document.getElementById('nextDayBtn');
@@ -542,6 +593,7 @@
                 viewExpandedMenu.classList.toggle('active');
                 createExpandedMenu.classList.remove('active');
                 createMenuBtn.classList.remove('active'); // 隐藏新建按钮
+                toolExpandedMenu.classList.remove('active'); // 隐藏工具菜单
             });
 
             // 点击新建菜单按钮时显示新建扩展菜单并隐藏查看扩展菜单
@@ -549,6 +601,16 @@
                 createExpandedMenu.classList.toggle('active');
                 viewExpandedMenu.classList.remove('active');
                 viewMenuBtn.classList.remove('active'); // 隐藏查看按钮
+                toolExpandedMenu.classList.remove('active'); // 隐藏工具菜单
+            });
+
+            // 新增: 点击工具菜单按钮时显示工具扩展菜单
+            toolMenuBtn.addEventListener('click', function() {
+                toolExpandedMenu.classList.toggle('active');
+                viewExpandedMenu.classList.remove('active');
+                createExpandedMenu.classList.remove('active');
+                viewMenuBtn.classList.remove('active'); // 隐藏查看按钮
+                createMenuBtn.classList.remove('active'); // 隐藏新建按钮
             });
 
             // 点击其他地方时关闭扩展菜单
@@ -558,6 +620,10 @@
                 }
                 if (!createMenuBtn.contains(event.target) && !createExpandedMenu.contains(event.target)) {
                     createExpandedMenu.classList.remove('active');
+                }
+                // 新增: 点击其他地方时关闭工具扩展菜单
+                if (!toolMenuBtn.contains(event.target) && !toolExpandedMenu.contains(event.target)) {
+                    toolExpandedMenu.classList.remove('active');
                 }
             });
             // 点击创建事项按钮时跳转到 item.html
