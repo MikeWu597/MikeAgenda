@@ -336,7 +336,7 @@
 
     <!-- 新增: 工具扩展菜单 -->
     <div class="expanded-menu" id="toolExpandedMenu">
-        <div class="expanded-menu-btn" id="toolBtn1">
+        <div class="expanded-menu-btn" id="toolBtnToHH">
             <i class="bi bi-train-front" style="position: relative;">
                 <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; 
                     text-shadow: 
@@ -346,7 +346,7 @@
                         2px 2px 0 #007bff;">H</span>
             </i>
         </div>
-        <div class="expanded-menu-btn" id="toolBtn2">
+        <div class="expanded-menu-btn" id="toolBtnToAUS">
             <i class="bi bi-train-front" style="position: relative;">
                 <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold;
                     text-shadow: 
@@ -674,6 +674,14 @@
             // 新增: 点击查看续费按钮时跳转到 renewal.html
             viewRenewalBtn.addEventListener('click', function() {
                 window.location.href = '/view/renewal.html';
+            });
+
+            toolBtnToHH.addEventListener('click', function() {
+                window.location.href = '/tool/to_hh.html';
+            });
+
+            toolBtnToAUS.addEventListener('click', function() {
+                window.location.href = '/tool/to_aus.html';
             });
 
             // 新增辅助函数：判断两个日期是否属于同一天
