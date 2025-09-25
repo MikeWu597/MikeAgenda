@@ -4,6 +4,7 @@ const yaml = require('js-yaml');
 const SQLiteManager = require('./services/SQLiteManager'); // 引入 SQLiteManager
 const crypto = require('crypto');
 const apiRoutes = require('./services/api'); // 引入 API 路由
+const mtrRoutes = require('./services/mtr'); // 引入 MTR 路由
 
 const app = express();
 const sqliteManager = new SQLiteManager(); // 实例化 SQLiteManager
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // 引入 API 路由
 app.use('/api', apiRoutes);
+app.use('/mtr', mtrRoutes);
 
 // 读取配置文件
 const configPath = './config.yml';
