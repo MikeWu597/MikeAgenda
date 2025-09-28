@@ -36,6 +36,16 @@
         .loading {
             color: #0066cc;
         }
+        .refresh-info {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .minutes-display {
+            font-size: 1.75rem;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -50,64 +60,61 @@
                 </h2>
                 
                 <div id="result" class="result" style="display: none;"></div>
-                <div id="countdown" class="countdown" style="display: none;"></div>
+                <div id="refreshInfo" class="refresh-info" style="display: none;"></div>
             </div>
         </div>
     </div>
 
     <script src="/js/bootstrap.bundle.min.js"></script>
     <script>
-        let countdownInterval;
-        let departureTime = null;
+        let refreshInterval;
+        let startTime;
         
         // Automatically load train info on page load
-        window.addEventListener('load', getNextTrain);
+        window.addEventListener('load', () => {
+            getNextTrain();
+            startTime = new Date();
+            // 每5秒刷新一次
+            refreshInterval = setInterval(getNextTrain, 5000);
+            updateRefreshInfo(); // 立即显示一次
+            setInterval(updateRefreshInfo, 1000); // 每秒更新刷新时间显示
+        });
         
         async function getNextTrain() {
-            // 清除现有的倒计时
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
+            const resultDiv = document.getElementById('result');
+            const refreshInfoDiv = document.getElementById('refreshInfo');
+            
+            // 只在首次加载时显示加载状态
+            if (!resultDiv.innerHTML) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result loading';
+                resultDiv.innerHTML = '<p class="text-center">加载中...</p>';
             }
             
-            const resultDiv = document.getElementById('result');
-            const countdownDiv = document.getElementById('countdown');
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result loading';
-            resultDiv.innerHTML = '<p class="text-center">加载中...</p>';
-            countdownDiv.style.display = 'none';
+            refreshInfoDiv.style.display = 'block';
             
             try {
                 const response = await fetch('/mtr/next-train-to-aus');
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    resultDiv.className = 'result alert alert-success';
-                    // Simplified display format
+                    // 计算分钟数（四舍五入）
+                    const minutes = Math.round(data.data.timeUntilDeparture / 60);
+                    resultDiv.className = 'alert alert-primary';
                     resultDiv.innerHTML = `
-                        <p class="text-center mb-0">${formatTime(data.data.departHungHom)} - ${formatTime(data.data.actualArrivalAtAustin)}</p>
-                        <p class="text-center mb-0">距离发车还有 <span id="timeUntilDeparture">${data.data.timeUntilDeparture}</span> 秒</p>
+                        <p class="text-center mb-1">${formatTime(data.data.departHungHom)} - ${formatTime(data.data.actualArrivalAtAustin)}</p>
+                        <p class="text-center mb-0">距离发车还有约 <span class="minutes-display">${minutes}</span> 分钟</p>
                     `;
-                    
-                    // 设置发车时间用于倒计时
-                    const departure = new Date(data.data.departHungHom);
-                    departureTime = departure.getTime();
-                    
-                    // 显示倒计时
-                    countdownDiv.style.display = 'block';
-                    updateCountdown(); // 立即显示一次
-                    
-                    // 每秒更新倒计时
-                    countdownInterval = setInterval(updateCountdown, 1000);
                 } else {
-                    resultDiv.className = 'result alert alert-danger';
+                    resultDiv.className = 'alert alert-danger';
                     resultDiv.innerHTML = `<p class="text-center mb-0">错误: ${data.message}</p>`;
                 }
             } catch (error) {
-                resultDiv.className = 'result alert alert-danger';
+                resultDiv.className = 'alert alert-danger';
                 resultDiv.innerHTML = `<p class="text-center mb-0">错误: ${error.message}</p>`;
             }
         }
+        
         
         // Helper function to format time as HH:MM:SS
         function formatTime(dateTimeString) {
@@ -118,44 +125,21 @@
             return `${hours}:${minutes}:${seconds}`;
         }
         
-        function updateCountdown() {
-            if (departureTime === null) return;
-            
-            const countdownDiv = document.getElementById('countdown');
-            const currentTime = new Date().getTime(); // 使用浏览器本地时钟
-            const timeDiffSeconds = Math.floor((departureTime - currentTime) / 1000) - 30; // Adjust countdown by 30 seconds
-            
-            if (timeDiffSeconds > 0) {
-                // Format as xmxxs
-                const minutes = Math.floor(timeDiffSeconds / 60);
-                const seconds = timeDiffSeconds % 60;
-                countdownDiv.innerHTML = `${minutes}m${seconds.toString().padStart(2, '0')}s`;
-                
-                // Apply color based on time remaining
-                countdownDiv.className = 'countdown';
-                if (timeDiffSeconds > 120) {
-                    countdownDiv.classList.add('countdown-blue');
-                } else if (timeDiffSeconds > 60) {
-                    countdownDiv.classList.add('countdown-yellow');
-                } else {
-                    countdownDiv.classList.add('countdown-red');
-                }
-            } else {
-                // 显示 "Arrived" 而不是 0m00s
-                countdownDiv.innerHTML = '已到站';
-                countdownDiv.className = 'countdown countdown-red';
-                // 清除倒计时
-                if (countdownInterval) {
-                    clearInterval(countdownInterval);
-                    countdownInterval = null;
-                }
-            }
+        // 更新刷新时间显示
+        function updateRefreshInfo() {
+            const refreshInfoDiv = document.getElementById('refreshInfo');
+            const currentTime = new Date();
+            const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+            const totalSeconds = 5 - (elapsedSeconds % 5);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            refreshInfoDiv.innerHTML = `刷新时间: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         }
         
         // 页面关闭时清理定时器
         window.addEventListener('beforeunload', () => {
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
             }
         });
     </script>
