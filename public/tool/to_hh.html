@@ -43,7 +43,7 @@
             color: #666;
         }
         .minutes-display {
-            font-size: 1.75rem;
+            font-size: 2.25rem;
             font-weight: bold;
         }
     </style>
@@ -103,7 +103,7 @@
                     resultDiv.className = 'alert alert-primary';
                     resultDiv.innerHTML = `
                         <p class="text-center mb-1">${formatTime(data.data.departAustin)} - ${formatTime(data.data.actualArrivalAtHungHom)}</p>
-                        <p class="text-center mb-0">距离发车还有约 <span class="minutes-display">${minutes}</span> 分钟</p>
+                        <p class="text-center mb-0"><span class="minutes-display">${minutes}</span> 分钟</p>
                     `;
                 } else {
                     resultDiv.className = 'alert alert-danger';
