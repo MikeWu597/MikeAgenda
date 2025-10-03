@@ -356,6 +356,10 @@
                         2px 2px 0 #007bff;">A</span>
             </i>
         </div>
+        <!-- 新增: 学校点餐系统按钮 -->
+        <div class="expanded-menu-btn" id="toolBtnFoodOrder">
+            <i class="bi bi-shop"></i>
+        </div>
     </div>
 
     <div id="calendarModal" class="modal">
@@ -682,6 +686,11 @@
 
             toolBtnToAUS.addEventListener('click', function() {
                 window.location.href = '/tool/to_aus.html';
+            });
+
+            // 新增: 学校点餐系统按钮事件
+            toolBtnFoodOrder.addEventListener('click', function() {
+                window.open('https://csd.order.place/store/112871/mode/prekiosk?_aigens_source=scan&onpremise=true', '_blank');
             });
 
             // 新增辅助函数：判断两个日期是否属于同一天
