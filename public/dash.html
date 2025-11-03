@@ -360,6 +360,9 @@
         <div class="expanded-menu-btn" id="toolBtnFoodOrder">
             <i class="bi bi-shop"></i>
         </div>
+        <div class="expanded-menu-btn" id="toolBtnNoodleOrder">
+            <i class="bi bi-fork-knife"></i>
+        </div>
     </div>
 
     <div id="calendarModal" class="modal">
@@ -691,6 +694,11 @@
             // 新增: 学校点餐系统按钮事件
             toolBtnFoodOrder.addEventListener('click', function() {
                 window.open('https://csd.order.place/store/112871/mode/prekiosk?_aigens_source=scan&onpremise=true', '_blank');
+            });
+
+            // 新增: 遇见小面点餐系统按钮事件
+            toolBtnNoodleOrder.addEventListener('click', function() {
+                window.open('https://h5.xiaonoodles.com/materialQrcodeId=1839797535331319808', '_blank');
             });
 
             // 新增辅助函数：判断两个日期是否属于同一天
