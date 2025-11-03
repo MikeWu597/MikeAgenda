@@ -50,6 +50,41 @@
 
     <script src="/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 页面加载时检查是否存在有效的会话
+        window.addEventListener('DOMContentLoaded', async () => {
+            // 从cookie中获取session
+            const cookies = document.cookie.split(';');
+            let session = null;
+            
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'session') {
+                    session = value;
+                    break;
+                }
+            }
+            
+            // 如果存在session，验证其有效性
+            if (session) {
+                try {
+                    const response = await fetch('/api/getItems', {
+                        method: 'GET',
+                        headers: {
+                            'Session': session
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        // Session有效，重定向到dash.html
+                        window.location.href = '/dash.html';
+                    }
+                } catch (error) {
+                    console.error('Session validation failed:', error);
+                }
+            }
+        });
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
