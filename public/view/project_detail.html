@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目详情</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .record-item {
+            border-left: 3px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="project.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <span id="projectTitle">项目详情</span>
+                </h2>
+                
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div id="projectColor" class="me-3" style="width: 20px; height: 20px; background-color: #007bff; border-radius: 4px;"></div>
+                            <h5 id="projectName">项目名称</h5>
+                        </div>
+                        <span class="badge bg-secondary" id="projectId">#</span>
+                    </div>
+                    <div class="card-body">
+                        <p id="projectDescription">项目描述</p>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button class="btn btn-danger" id="deleteProject">
+                                删除项目
+                            </button>
+                            <button class="btn btn-primary" id="participateBtn">
+                                参与项目
+                            </button>
+                            <button class="btn btn-secondary" id="editBtn">
+                                编辑项目
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h4>参与记录</h4>
+                    <button class="btn btn-sm btn-outline-primary" id="refreshRecords">
+                        <i class="bi bi-arrow-repeat"></i> 刷新
+                    </button>
+                </div>
+                
+                <div id="recordsContainer">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">加载中...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑项目的模态框 -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">编辑项目</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editProjectId">
+                        <div class="mb-3">
+                            <label for="editName" class="form-label">项目名称</label>
+                            <input type="text" class="form-control" id="editName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">项目描述</label>
+                            <textarea class="form-control" id="editDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editColor" class="form-label">项目颜色</label>
+                            <input type="color" class="form-control" id="editColor">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="deleteProject">删除</button>
+                    <button type="button" class="btn btn-primary" id="saveEdit">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 从 URL 获取项目 ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('id');
+
+        // 从 cookie 中获取 session
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
+        // 获取项目详情
+        async function fetchProject() {
+            if (!projectId) {
+                alert('无效的项目 ID');
+                window.location.href = 'project.html';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/getProject/${projectId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': getSessionFromCookie()
+                    }
+                });
+                
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                if (response.status === 404) {
+                    alert('项目未找到');
+                    window.location.href = 'project.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    renderProject(data.project);
+                } else {
+                    alert(data.message || '加载项目失败');
+                }
+            } catch (error) {
+                console.error('Error fetching project:', error);
+                alert('加载项目失败，请重试');
+            }
+        }
+
+        // 渲染项目详情
+        function renderProject(project) {
+            document.getElementById('projectTitle').textContent = project.name;
+            document.getElementById('projectName').textContent = project.name;
+            document.getElementById('projectId').textContent = '#' + project.id;
+            document.getElementById('projectDescription').textContent = project.description || '无描述';
+            document.getElementById('projectColor').style.backgroundColor = project.color || '#007bff';
+            
+            // 设置编辑模态框的初始值
+            document.getElementById('editProjectId').value = project.id;
+            document.getElementById('editName').value = project.name;
+            document.getElementById('editDescription').value = project.description || '';
+            document.getElementById('editColor').value = project.color || '#007bff';
+        }
+
+        // 获取项目参与记录
+        async function fetchProjectRecords() {
+            try {
+                const response = await fetch(`/api/getProjectRecords/${projectId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': getSessionFromCookie()
+                    }
+                });
+                
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    renderRecords(data.records);
+                } else {
+                    alert(data.message || '加载参与记录失败');
+                }
+            } catch (error) {
+                console.error('Error fetching project records:', error);
+                alert('加载参与记录失败，请重试');
+            }
+        }
+
+        // 渲染参与记录
+        function renderRecords(records) {
+            const container = document.getElementById('recordsContainer');
+            
+            if (records.length === 0) {
+                container.innerHTML = '<p class="text-muted">暂无参与记录</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            
+            records.forEach(record => {
+                const recordElement = document.createElement('div');
+                recordElement.className = 'card mb-2 record-item';
+                recordElement.innerHTML = `
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">参与时间</small>
+                            <small>${new Date(record.timestamp).toLocaleString()}</small>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(recordElement);
+            });
+        }
+
+        // 参与项目
+        async function participateInProject() {
+            try {
+                const session = getSessionFromCookie();
+                const response = await fetch('/api/participateInProject', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ projectId, session })
+                });
+                
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('已记录参与项目');
+                    fetchProjectRecords(); // 刷新记录
+                } else {
+                    alert(data.message || '参与项目失败');
+                }
+            } catch (error) {
+                console.error('Error participating in project:', error);
+                alert('参与项目失败，请重试');
+            }
+        }
+
+        // 删除项目
+        async function deleteProject() {
+            if (!confirm('确定要删除这个项目吗？')) {
+                return;
+            }
+            
+            try {
+                const session = getSessionFromCookie();
+                const response = await fetch(`/api/deleteProject/${projectId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session })
+                });
+                
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('项目已删除');
+                    window.location.href = 'project.html';
+                } else {
+                    alert(data.message || '删除项目失败');
+                }
+            } catch (error) {
+                console.error('Error deleting project:', error);
+                alert('删除项目失败，请重试');
+            }
+        }
+
+        // 保存编辑
+        async function saveEdit() {
+            const name = document.getElementById('editName').value;
+            const description = document.getElementById('editDescription').value;
+            const color = document.getElementById('editColor').value;
+            
+            try {
+                const session = getSessionFromCookie();
+                const response = await fetch(`/api/updateProject/${projectId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description, color, session })
+                });
+                
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('项目已更新');
+                    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                    fetchProject(); // 重新加载项目信息
+                } else {
+                    alert(data.message || '更新项目失败');
+                }
+            } catch (error) {
+                console.error('Error updating project:', error);
+                alert('更新项目失败，请重试');
+            }
+        }
+
+        // 页面加载完成后获取项目信息和记录
+        document.addEventListener('DOMContentLoaded', () => {
+            const session = getSessionFromCookie();
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            if (!projectId) {
+                alert('无效的项目 ID');
+                window.location.href = 'project.html';
+                return;
+            }
+            
+            fetchProject();
+            fetchProjectRecords();
+        });
+
+        // 绑定事件
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('participateBtn').addEventListener('click', participateInProject);
+            document.getElementById('editBtn').addEventListener('click', () => {
+                const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+                editModal.show();
+            });
+            document.getElementById('deleteProject').addEventListener('click', deleteProject);
+            document.getElementById('saveEdit').addEventListener('click', saveEdit);
+            document.getElementById('refreshRecords').addEventListener('click', fetchProjectRecords);
+        });
+    </script>
+</body>
+</html>

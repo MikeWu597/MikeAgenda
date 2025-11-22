@@ -308,6 +308,9 @@
         <div class="expanded-menu-btn" id="viewCycleBtn">
             <i class="bi bi-arrow-clockwise"></i>
         </div>
+        <div class="expanded-menu-btn" id="viewProjectBtn">
+            <i class="bi bi-kanban"></i>
+        </div>
         <div class="expanded-menu-btn" id="viewRenewalCategoryBtn">
             <i class="bi bi-minecart-loaded"></i>
         </div>
@@ -325,6 +328,9 @@
         </div>
         <div class="expanded-menu-btn" id="createCycleBtn">
             <i class="bi bi-arrow-clockwise"></i>
+        </div>
+        <div class="expanded-menu-btn" id="createProjectBtn">
+            <i class="bi bi-kanban"></i>
         </div>
         <div class="expanded-menu-btn" id="createRenewalCategoryBtn">
             <i class="bi bi-minecart-loaded"></i>
@@ -699,6 +705,15 @@
             // 新增: 遇见小面点餐系统按钮事件
             toolBtnNoodleOrder.addEventListener('click', function() {
                 window.open('https://h5.xiaonoodles.com/materialQrcodeId=1839797535331319808', '_blank');
+            });
+
+            // 项目管理按钮事件
+            viewProjectBtn.addEventListener('click', function() {
+                window.location.href = '/view/project.html';
+            });
+            
+            createProjectBtn.addEventListener('click', function() {
+                window.location.href = '/create/project.html';
             });
 
             // 新增辅助函数：判断两个日期是否属于同一天

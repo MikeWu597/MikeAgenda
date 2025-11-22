@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新建项目</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    新建项目
+                </h2>
+                <div class="form-container">
+                    <form id="createForm">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">项目名称</label>
+                            <input type="text" class="form-control" id="name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">项目描述</label>
+                            <textarea class="form-control" id="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="color" class="form-label">项目颜色</label>
+                            <input type="color" class="form-control" id="color" value="#007bff">
+                        </div>
+                        <button type="submit" class="btn btn-primary">创建项目</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 检查用户是否已登录
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+        });
+
+        document.getElementById('createForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('name').value;
+            const description = document.getElementById('description').value;
+            const color = document.getElementById('color').value;
+
+            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+            if (!session) {
+                alert('未授权，请重新登录');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const sessionValue = session.split('=')[1];
+
+            fetch('/api/createProject', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, description, color, session: sessionValue })
+            })
+            .then(response => {
+                if (response.status === 401) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    alert('项目已创建');
+                    window.location.href = '/view/project.html';
+                } else {
+                    alert(data.message || '创建项目失败');
+                }
+            })
+            .catch(error => {
+                console.error('Error creating project:', error);
+                alert('创建项目失败，请重试');
+            });
+        });
+    </script>
+</body>
+</html>
