@@ -116,6 +116,27 @@ class SQLiteManager {
             );
         `;
 
+        // 新增：创建 project 表
+        const createProjectTableQuery = `
+            CREATE TABLE IF NOT EXISTS project (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                description TEXT,
+                color TEXT,
+                deleted BOOLEAN DEFAULT 0
+            );
+        `;
+
+        // 新增：创建 project_record 表
+        const createProjectRecordTableQuery = `
+            CREATE TABLE IF NOT EXISTS project_record (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id INTEGER NOT NULL,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (project_id) REFERENCES project (id)
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -145,7 +166,21 @@ class SQLiteManager {
                                                                 if (err) {
                                                                     reject(err);
                                                                 } else {
-                                                                    resolve();
+                                                                    // 新增：创建 project 表
+                                                                    this.db.run(createProjectTableQuery, (err) => {
+                                                                        if (err) {
+                                                                            reject(err);
+                                                                        } else {
+                                                                            // 新增：创建 project_record 表
+                                                                            this.db.run(createProjectRecordTableQuery, (err) => {
+                                                                                if (err) {
+                                                                                    reject(err);
+                                                                                } else {
+                                                                                    resolve();
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    });
                                                                 }
                                                             });
                                                         }
@@ -608,6 +643,147 @@ class SQLiteManager {
         });
     }
 
+    // 新增：创建项目
+    async createProject(name, description, color) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                INSERT INTO project (name, description, color)
+                VALUES (?, ?, ?)
+            `;
+            this.db.run(query, [name, description, color], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：更新项目
+    async updateProject(id, name, description, color) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                UPDATE project
+                SET name = ?, description = ?, color = ?
+                WHERE id = ?
+            `;
+            this.db.run(query, [name, description, color, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除项目（软删除）
+    async deleteProject(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            const query = `
+                UPDATE project
+                SET deleted = 1
+                WHERE id = ?
+            `;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有未删除的项目
+    async getProjects() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM project WHERE deleted = 0', [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 新增：根据ID获取项目
+    async getProjectById(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.get('SELECT * FROM project WHERE id = ? AND deleted = 0', [id], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(row);
+                }
+            });
+        });
+    }
+
+    // 新增：参与项目（创建项目记录）
+    async participateInProject(projectId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            // 先检查项目是否存在且未被删除
+            this.getProjectById(projectId).then(project => {
+                if (!project) {
+                    reject(new Error('Project not found or deleted'));
+                    return;
+                }
+                
+                const query = `
+                    INSERT INTO project_record (project_id)
+                    VALUES (?)
+                `;
+                this.db.run(query, [projectId], function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(this.lastID);
+                    }
+                });
+            }).catch(err => {
+                reject(err);
+            });
+        });
+    }
+
+    // 新增：获取项目的所有参与记录
+    async getProjectRecords(projectId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            this.db.all('SELECT * FROM project_record WHERE project_id = ? ORDER BY timestamp DESC', [projectId], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
     async getAllRenewals(session) {
         return new Promise((resolve, reject) => {
             if (!this.db) {
@@ -719,6 +895,7 @@ class SQLiteManager {
             });
         });
     }
+
 }
 
 module.exports = SQLiteManager;

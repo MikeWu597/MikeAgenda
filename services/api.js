@@ -1380,4 +1380,224 @@ router.post('/deleteRenewalCategories/:id', async (req, res) => {
     }
 });
 
+// 新增：项目管理 API
+
+// 创建项目
+router.post('/createProject', async (req, res) => {
+    const session = req.body.session;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const { name, description, color } = req.body;
+        if (!name) {
+            return res.status(400).json({ success: false, message: '项目名称不能为空' });
+        }
+        
+        const projectId = await sqliteManager.createProject(name, description, color);
+        res.json({ success: true, message: '项目创建成功', id: projectId });
+    } catch (err) {
+        console.error('Error creating project:', err.message);
+        res.status(500).json({ success: false, message: '创建项目失败' });
+    }
+});
+
+// 更新项目
+router.put('/updateProject/:id', async (req, res) => {
+    const session = req.body.session;
+    const projectId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    if (!projectId) {
+        return res.status(400).json({ success: false, message: '缺少项目 ID' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const { name, description, color } = req.body;
+        if (!name) {
+            return res.status(400).json({ success: false, message: '项目名称不能为空' });
+        }
+        
+        const updated = await sqliteManager.updateProject(projectId, name, description, color);
+        if (updated) {
+            res.json({ success: true, message: '项目更新成功' });
+        } else {
+            res.status(404).json({ success: false, message: '项目未找到' });
+        }
+    } catch (err) {
+        console.error('Error updating project:', err.message);
+        res.status(500).json({ success: false, message: '更新项目失败' });
+    }
+});
+
+// 删除项目（软删除）
+router.delete('/deleteProject/:id', async (req, res) => {
+    const session = req.body.session;
+    const projectId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    if (!projectId) {
+        return res.status(400).json({ success: false, message: '缺少项目 ID' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const deleted = await sqliteManager.deleteProject(projectId);
+        if (deleted) {
+            res.json({ success: true, message: '项目删除成功' });
+        } else {
+            res.status(404).json({ success: false, message: '项目未找到' });
+        }
+    } catch (err) {
+        console.error('Error deleting project:', err.message);
+        res.status(500).json({ success: false, message: '删除项目失败' });
+    }
+});
+
+// 获取所有项目
+router.get('/getProjects', async (req, res) => {
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const projects = await sqliteManager.getProjects();
+        res.json({ success: true, projects });
+    } catch (err) {
+        console.error('Error fetching projects:', err.message);
+        res.status(500).json({ success: false, message: '获取项目列表失败' });
+    }
+});
+
+// 根据ID获取项目
+router.get('/getProject/:id', async (req, res) => {
+    const session = req.headers['session'];
+    const projectId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    if (!projectId) {
+        return res.status(400).json({ success: false, message: '缺少项目 ID' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const project = await sqliteManager.getProjectById(projectId);
+        if (project) {
+            res.json({ success: true, project });
+        } else {
+            res.status(404).json({ success: false, message: '项目未找到' });
+        }
+    } catch (err) {
+        console.error('Error fetching project:', err.message);
+        res.status(500).json({ success: false, message: '获取项目失败' });
+    }
+});
+
+// 参与项目
+router.post('/participateInProject', async (req, res) => {
+    const session = req.body.session;
+    const { projectId } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    if (!projectId) {
+        return res.status(400).json({ success: false, message: '缺少项目 ID' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        const recordId = await sqliteManager.participateInProject(projectId);
+        res.json({ success: true, message: '参与项目记录创建成功', id: recordId });
+    } catch (err) {
+        console.error('Error participating in project:', err.message);
+        if (err.message === 'Project not found or deleted') {
+            res.status(404).json({ success: false, message: '项目未找到或已被删除' });
+        } else {
+            res.status(500).json({ success: false, message: '参与项目失败' });
+        }
+    }
+});
+
+// 获取项目参与记录
+router.get('/getProjectRecords/:projectId', async (req, res) => {
+    const session = req.headers['session'];
+    const projectId = req.params.projectId;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+    
+    if (!projectId) {
+        return res.status(400).json({ success: false, message: '缺少项目 ID' });
+    }
+    
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+        
+        // 检查项目是否存在
+        const project = await sqliteManager.getProjectById(projectId);
+        if (!project) {
+            return res.status(404).json({ success: false, message: '项目未找到' });
+        }
+        
+        const records = await sqliteManager.getProjectRecords(projectId);
+        res.json({ success: true, records });
+    } catch (err) {
+        console.error('Error fetching project records:', err.message);
+        res.status(500).json({ success: false, message: '获取项目参与记录失败' });
+    }
+});
+
 module.exports = router;
