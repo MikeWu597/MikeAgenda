@@ -228,6 +228,15 @@
         h5 {
             margin: 2px; /* 移除标题的默认外边距，确保对齐 */
         }
+        
+        /* 新增：项目卡片样式 */
+        .project-color-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            margin-right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -265,14 +274,17 @@
                             <div class="column-header mt-4" id="renewalTitle">续费</div>
                             <div id="renewalContainer"></div>
                         </div>
-                        
                     </div>
-                    
-                    
                 </div>
                 <div class="container-row">
                     <div class="column-container">
                         <div id="todoContainer">
+                        </div>
+                        
+                        <!-- 新增：项目板块 -->
+                        <div id="projectContainerWrapper">
+                            <div class="column-header mt-4" id="projectTitle">项目</div>
+                            <div id="projectContainer"></div>
                         </div>
                     </div>
                 </div>
@@ -940,6 +952,13 @@
             await fetchTodayCycles(formattedDate); // 获取今日循环
             await fetchTodayRenewals(); // 获取今日续费项目
             await loadTodaySchedule(); // 加载今日课程表
+            
+            // 新增：获取并渲染项目
+            const projects = await fetchProjects();
+            const projectParticipation = await fetchProjectRecordsForDate(
+                formattedDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') // 转换为 YYYY-MM-DD 格式
+            );
+            renderProjects(projects, projectParticipation);
         }
 
             
@@ -1248,6 +1267,109 @@
                 console.error('Error fetching today\'s renewals:', error);
                 alert('加载续费项目失败，请重试');
             }
+        }
+
+        // 新增：获取所有项目
+        async function fetchProjects() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getProjects', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return data.projects;
+                } else {
+                    console.error(data.message || '加载项目失败');
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error fetching projects:', error);
+                return [];
+            }
+        }
+
+        // 新增：获取指定日期的项目参与记录
+        async function fetchProjectRecordsForDate(date) {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    return [];
+                }
+
+                // 获取所有项目
+                const projects = await fetchProjects();
+                
+                // 获取每个项目的参与记录
+                const projectParticipation = {};
+                for (const project of projects) {
+                    const response = await fetch(`/api/getProjectRecords/${project.id}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'session': session
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            // 检查是否有在指定日期的参与记录
+                            const hasParticipationOnDate = data.records.some(record => {
+                                const recordDate = record.timestamp.split(' ')[0]; // YYYY-MM-DD
+                                return recordDate === date;
+                            });
+                            projectParticipation[project.id] = hasParticipationOnDate;
+                        }
+                    }
+                }
+                
+                return projectParticipation;
+            } catch (error) {
+                console.error('Error fetching project records:', error);
+                return {};
+            }
+        }
+
+        // 新增：渲染项目列表
+        function renderProjects(projects, projectParticipation) {
+            const projectContainer = document.getElementById('projectContainer');
+            projectContainer.innerHTML = ''; // 清空容器
+
+            projects.forEach(project => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3';
+                
+                // 根据是否在当天参与过来设置背景色
+                const isParticipated = projectParticipation[project.id];
+                const backgroundColor = isParticipated ? '#cce5ff' : 'transparent'; // 浅蓝色或透明
+                
+                card.innerHTML = `
+                    <div class="card-body" style="background-color: ${backgroundColor};">
+                        <div class="d-flex align-items-center">
+                            <div class="project-color-indicator" style="background-color: ${project.color};"></div>
+                            <h5 class="mb-0">${project.name}</h5>
+                        </div>
+                        ${project.description ? `<p class="mt-2 mb-0">${project.description}</p>` : ''}
+                    </div>
+                `;
+                projectContainer.appendChild(card);
+            });
+            
+            // 更新项目标题显示数量
+            const projectTitle = document.getElementById('projectTitle');
+            projectTitle.innerHTML = `项目 <span class="badge bg-primary">${projects.length}</span>`;
         }
 
     </script>
