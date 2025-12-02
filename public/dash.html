@@ -1016,7 +1016,30 @@
 
         // 修改：在 scheduleContainer 中加载当天课程表
         async function loadTodaySchedule() {
+            // 首先检查授课状态
+            const teachingStatus = await getTeachingStatus();
+            
             const scheduleContainer = document.getElementById('scheduleContainer');
+            const leftContainer = document.getElementById('leftContainer');
+            
+            // 如果授课状态不是1，则不渲染课表
+            if (teachingStatus !== '1') {
+                scheduleContainer.innerHTML = ''; // 清空课表容器
+                scheduleContainer.style.display = 'none'; // 隐藏课表容器
+                leftContainer.style.display = 'none'; // 隐藏左侧容器
+                
+                // 触发容器重新布局
+                const containerRow = document.querySelector('.container-row');
+                if (containerRow) {
+                    containerRow.style.display = 'flex';
+                }
+                return;
+            }
+            
+            // 如果显示课表，恢复显示
+            scheduleContainer.style.display = ''; // 恢复显示
+            leftContainer.style.display = ''; // 恢复显示
+            
             scheduleContainer.innerHTML = '<div class="column-header">' + ' 课表</div>'; // 添加带日期的标题
 
             try {
@@ -1107,6 +1130,34 @@
             } catch (error) {
                 console.error('Error loading today schedule:', error);
                 alert('加载课程失败，请重试');
+            }
+        }
+
+        // 新增：获取授课状态
+        async function getTeachingStatus() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    return '0'; // 默认不显示课表
+                }
+
+                const response = await fetch('/api/getTeachingStatus', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return data.teaching;
+                } else {
+                    return '0'; // 默认不显示课表
+                }
+            } catch (error) {
+                console.error('Error fetching teaching status:', error);
+                return '0'; // 默认不显示课表
             }
         }
 

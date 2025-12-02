@@ -945,6 +945,25 @@ class SQLiteManager {
         });
     }
 
+    // 新增：获取教学状态
+    async getTeachingStatus() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `SELECT value FROM config WHERE config = 'teaching'`;
+            this.db.get(query, [], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    // 如果没有设置teaching配置，默认返回'0'
+                    resolve(row ? row.value : '0');
+                }
+            });
+        });
+    }
+
 }
 
 module.exports = SQLiteManager;

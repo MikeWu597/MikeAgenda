@@ -712,6 +712,29 @@ router.get('/getCategoryByName/:name', async (req, res) => {
     }
 });
 
+// 新增：获取授课状态 API
+router.get('/getTeachingStatus', async (req, res) => {
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 使用 SQLiteManager 的方法获取 teaching 状态
+        const teachingStatus = await sqliteManager.getTeachingStatus();
+        res.json({ success: true, teaching: teachingStatus });
+    } catch (err) {
+        console.error('Error fetching teaching status:', err.message);
+        res.status(500).json({ success: false, message: '获取授课状态失败' });
+    }
+});
 
 // 创建循环 API
 router.post('/createCycle', async (req, res) => {
