@@ -9,12 +9,23 @@
     <style>
         .sortable-item {
             cursor: move;
+            user-select: none;
         }
         .sortable-item:hover {
             background-color: #f8f9fa;
         }
+        .sortable-item.dragging {
+            opacity: 0.5;
+            background-color: #e9ecef;
+        }
         .drag-handle {
             cursor: move;
+        }
+        .sortable-placeholder {
+            height: 90px;
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -27,9 +38,6 @@
                 </a>
                 编辑检查表
             </h2>
-            <button id="saveBtn" class="btn btn-primary">
-                <i class="bi bi-save"></i> 保存
-            </button>
         </div>
 
         <div class="card mb-4">
@@ -60,10 +68,6 @@
                     <div class="mb-3">
                         <label for="checklistName" class="form-label">检查表名称</label>
                         <input type="text" class="form-control" id="checklistName" placeholder="请输入检查表名称">
-                    </div>
-                    <div class="mb-3">
-                        <label for="checklistOrder" class="form-label">排序序号</label>
-                        <input type="number" class="form-control" id="checklistOrder" placeholder="请输入排序序号">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -118,10 +122,6 @@
                         <label for="itemName" class="form-label">检查项名称</label>
                         <input type="text" class="form-control" id="itemName" placeholder="请输入检查项名称">
                     </div>
-                    <div class="mb-3">
-                        <label for="itemOrder" class="form-label">排序序号</label>
-                        <input type="number" class="form-control" id="itemOrder" placeholder="请输入排序序号">
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
@@ -145,6 +145,7 @@
         };
 
         let currentChecklists = [];
+        let currentItems = [];
 
         // Load all checklists
         async function loadChecklists() {
@@ -194,15 +195,20 @@
             checklists.forEach((checklist, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'sortable-item d-flex justify-content-between align-items-center p-3 border-bottom';
+                itemDiv.setAttribute('data-id', checklist.id);
+                itemDiv.setAttribute('data-order', checklist.order_index);
                 itemDiv.innerHTML = `
-                    <div>
+                    <div class="drag-handle me-2">
+                        <i class="bi bi-grip-vertical text-muted"></i>
+                    </div>
+                    <div class="flex-grow-1">
                         <strong>${checklist.name}</strong>
                     </div>
                     <div>
                         <button class="btn btn-sm btn-outline-primary me-1 edit-checklist" data-id="${checklist.id}">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-info me-1 edit-items" data-id="${checklist.id}" data-name="${checklist.name}">
+                        <button class="btn btn-sm btn-outline-success me-1 edit-items" data-id="${checklist.id}" data-name="${checklist.name}">
                             <i class="bi bi-list-check"></i>
                         </button>
                         <button class="btn btn-sm btn-outline-danger delete-checklist" data-id="${checklist.id}">
@@ -215,22 +221,28 @@
 
             // Add event listeners
             document.querySelectorAll('.edit-checklist').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     editChecklist(btn.dataset.id);
                 });
             });
 
             document.querySelectorAll('.edit-items').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     editItems(btn.dataset.id, btn.dataset.name);
                 });
             });
 
             document.querySelectorAll('.delete-checklist').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     deleteChecklist(btn.dataset.id);
                 });
             });
+
+            // Initialize drag and drop for checklists
+            initDragAndDrop(container, 'checklist');
         }
 
         // Add new checklist
@@ -238,7 +250,6 @@
             document.getElementById('checklistModalLabel').textContent = '添加检查表';
             document.getElementById('checklistId').value = '';
             document.getElementById('checklistName').value = '';
-            document.getElementById('checklistOrder').value = '';
             const modal = new bootstrap.Modal(document.getElementById('checklistModal'));
             modal.show();
         }
@@ -250,7 +261,6 @@
                 document.getElementById('checklistModalLabel').textContent = '编辑检查表';
                 document.getElementById('checklistId').value = checklist.id;
                 document.getElementById('checklistName').value = checklist.name;
-                document.getElementById('checklistOrder').value = checklist.order_index;
                 const modal = new bootstrap.Modal(document.getElementById('checklistModal'));
                 modal.show();
             }
@@ -260,7 +270,6 @@
         async function saveChecklist() {
             const id = document.getElementById('checklistId').value;
             const name = document.getElementById('checklistName').value;
-            const orderIndex = document.getElementById('checklistOrder').value;
 
             if (!name) {
                 alert('请输入检查表名称');
@@ -285,8 +294,7 @@
                     },
                     body: JSON.stringify({ 
                         session: session,
-                        name: name,
-                        orderIndex: orderIndex || 0
+                        name: name
                     })
                 });
 
@@ -363,6 +371,7 @@
 
                 const data = await response.json();
                 if (data.success) {
+                    currentItems = data.checklist.items;
                     renderItems(data.checklist.items);
                     const modal = new bootstrap.Modal(document.getElementById('itemsModal'));
                     modal.show();
@@ -392,8 +401,13 @@
             items.forEach(item => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'sortable-item d-flex justify-content-between align-items-center p-2 border-bottom';
+                itemDiv.setAttribute('data-id', item.id);
+                itemDiv.setAttribute('data-order', item.order_index);
                 itemDiv.innerHTML = `
-                    <div>
+                    <div class="drag-handle me-2">
+                        <i class="bi bi-grip-vertical text-muted"></i>
+                    </div>
+                    <div class="flex-grow-1">
                         ${item.name}
                     </div>
                     <div>
@@ -410,16 +424,21 @@
 
             // Add event listeners
             document.querySelectorAll('.edit-item').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     editItem(btn.dataset.id);
                 });
             });
 
             document.querySelectorAll('.delete-item').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     deleteItem(btn.dataset.id);
                 });
             });
+
+            // Initialize drag and drop for items
+            initDragAndDrop(container, 'item');
         }
 
         // Add new item
@@ -429,20 +448,38 @@
             document.getElementById('itemId').value = '';
             document.getElementById('itemChecklistId').value = checklistId;
             document.getElementById('itemName').value = '';
-            document.getElementById('itemOrder').value = '';
             const modal = new bootstrap.Modal(document.getElementById('itemModal'));
             modal.show();
         }
 
         // Edit item
         async function editItem(id) {
-            // For simplicity, we'll just open the modal with empty fields
-            // In a real implementation, you would load the item data
-            document.getElementById('itemModalLabel').textContent = '编辑检查项';
-            document.getElementById('itemId').value = id;
-            // You would load the item data here
-            const modal = new bootstrap.Modal(document.getElementById('itemModal'));
-            modal.show();
+            try {
+                // Load the item data from the server
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                // Find the item in currentItems array
+                const item = currentItems.find(i => i.id == id);
+                if (!item) {
+                    alert('检查项未找到');
+                    return;
+                }
+
+                document.getElementById('itemModalLabel').textContent = '编辑检查项';
+                document.getElementById('itemId').value = item.id;
+                document.getElementById('itemChecklistId').value = item.checklist_id;
+                document.getElementById('itemName').value = item.name;
+                
+                const modal = new bootstrap.Modal(document.getElementById('itemModal'));
+                modal.show();
+            } catch (error) {
+                console.error('Error loading item:', error);
+                alert('加载检查项失败，请重试');
+            }
         }
 
         // Save item
@@ -450,7 +487,6 @@
             const id = document.getElementById('itemId').value;
             const checklistId = document.getElementById('itemChecklistId').value;
             const name = document.getElementById('itemName').value;
-            const orderIndex = document.getElementById('itemOrder').value;
 
             if (!name) {
                 alert('请输入检查项名称');
@@ -481,8 +517,7 @@
                     body: JSON.stringify({ 
                         session: session,
                         checklistId: checklistId,
-                        name: name,
-                        orderIndex: orderIndex || 0
+                        name: name
                     })
                 });
 
@@ -490,6 +525,13 @@
                 if (data.success) {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('itemModal'));
                     modal.hide();
+                    
+                    // Make sure backdrop is properly removed
+                    document.body.classList.remove('modal-open');
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
                     
                     // Refresh items list
                     const itemsModal = document.getElementById('itemsModal');
@@ -531,6 +573,13 @@
 
                 const data = await response.json();
                 if (data.success) {
+                    // Make sure backdrop is properly removed
+                    document.body.classList.remove('modal-open');
+                    const backdrop = document.querySelector('.modal-backdrop');
+                    if (backdrop) {
+                        backdrop.remove();
+                    }
+                    
                     // Refresh items list
                     const itemsModal = document.getElementById('itemsModal');
                     const itemsChecklistId = document.getElementById('itemsChecklistId').value;
@@ -545,10 +594,143 @@
             }
         }
 
+        // Initialize drag and drop functionality
+        function initDragAndDrop(container, type) {
+            let draggedItem = null;
+
+            container.querySelectorAll('.sortable-item').forEach(item => {
+                // Add drag events
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = item;
+                    setTimeout(() => item.classList.add('dragging'), 0);
+                });
+
+                item.addEventListener('dragend', () => {
+                    item.classList.remove('dragging');
+                    draggedItem = null;
+                    
+                    // Update order after drag ends
+                    updateOrder(container, type);
+                });
+
+                // Add drop events
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const afterElement = getDragAfterElement(container, e.clientY);
+                    const draggable = document.querySelector('.dragging');
+                    if (afterElement == null) {
+                        container.appendChild(draggable);
+                    } else {
+                        container.insertBefore(draggable, afterElement);
+                    }
+                });
+            });
+
+            // Enable dragging
+            container.querySelectorAll('.sortable-item').forEach(item => {
+                item.setAttribute('draggable', true);
+            });
+        }
+
+        // Get element after which to place the dragged item
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.sortable-item:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // Update order of items after drag and drop
+        function updateOrder(container, type) {
+            const items = container.querySelectorAll('.sortable-item');
+            const updates = [];
+            
+            items.forEach((item, index) => {
+                const id = item.getAttribute('data-id');
+                const currentOrder = parseInt(item.getAttribute('data-order'));
+                const newOrder = index;
+                
+                // Only update if order has changed
+                if (currentOrder !== newOrder) {
+                    updates.push({ id, order: newOrder });
+                    item.setAttribute('data-order', newOrder);
+                }
+            });
+            
+            // Apply order updates
+            if (updates.length > 0) {
+                applyOrderUpdates(updates, type);
+            }
+        }
+
+        // Apply order updates to the database
+        async function applyOrderUpdates(updates, type) {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                // Update each item's order
+                for (const update of updates) {
+                    if (type === 'checklist') {
+                        // Update checklist order
+                        await fetch(`/api/updateChecklist/${update.id}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            },
+                            body: JSON.stringify({ 
+                                session: session,
+                                name: currentChecklists.find(c => c.id == update.id)?.name || '',
+                                orderIndex: update.order
+                            })
+                        });
+                    } else if (type === 'item') {
+                        // Update item order
+                        const currentItem = currentItems.find(i => i.id == update.id);
+                        if (currentItem) {
+                            await fetch(`/api/updateChecklistItem/${update.id}`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'session': session
+                                },
+                                body: JSON.stringify({ 
+                                    session: session,
+                                    name: currentItem.name,
+                                    orderIndex: update.order,
+                                    checked: currentItem.checked
+                                })
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating order:', error);
+            }
+        }
+
         // Save all changes
         async function saveChanges() {
+            // Since order is automatically saved when dragging, we just show a success message
             alert('所有更改已保存');
             window.location.href = '/view/checklists.html';
+        }
+        
+        // Save items order specifically
+        async function saveItemsOrder() {
+            // Since order is automatically saved when dragging, we just show a success message
+            alert('检查项顺序已保存');
         }
 
         // Initialize page
