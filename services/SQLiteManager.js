@@ -18,6 +18,9 @@ class SQLiteManager {
 
             // 初始化表结构
             await this.createTables();
+            
+            // 初始化配置
+            await this.initializeConfig();
         } catch (error) {
             console.error('Error initializing SQLite database:', error);
             process.exit(1);
@@ -137,6 +140,14 @@ class SQLiteManager {
             );
         `;
 
+        // 创建 config 表
+        const createConfigTableQuery = `
+            CREATE TABLE IF NOT EXISTS config (
+                config TEXT NOT NULL,
+                value TEXT NOT NULL
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -176,7 +187,14 @@ class SQLiteManager {
                                                                                 if (err) {
                                                                                     reject(err);
                                                                                 } else {
-                                                                                    resolve();
+                                                                                    // 创建 config 表
+                                                                                    this.db.run(createConfigTableQuery, (err) => {
+                                                                                        if (err) {
+                                                                                            reject(err);
+                                                                                        } else {
+                                                                                            resolve();
+                                                                                        }
+                                                                                    });
                                                                                 }
                                                                             });
                                                                         }
@@ -193,6 +211,37 @@ class SQLiteManager {
                             });
                         }
                     });
+                }
+            });
+        });
+    }
+
+    // 检查并初始化配置表
+    async initializeConfig() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            // 检查是否已有 teaching 配置
+            const checkConfigQuery = `SELECT value FROM config WHERE config = 'teaching'`;
+            this.db.get(checkConfigQuery, [], (err, row) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    // 如果没有 teaching 配置，则插入默认值
+                    if (!row) {
+                        const insertConfigQuery = `INSERT INTO config (config, value) VALUES ('teaching', '1')`;
+                        this.db.run(insertConfigQuery, [], (err) => {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve();
+                            }
+                        });
+                    } else {
+                        resolve();
+                    }
                 }
             });
         });
