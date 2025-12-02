@@ -36,6 +36,17 @@
                     </div>
                     <small class="text-muted">设置为 0 则关闭自动刷新功能。</small>
                 </div>
+                
+                <!-- 新增：授课模式设置选项 -->
+                <div class="mb-4">
+                    <label class="form-label">启用授课模式：</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="teachingModeSwitch">
+                        <label class="form-check-label" for="teachingModeSwitch">
+                            <small class="text-muted">设置为开启后显示课表。</small></label>
+                    </div>
+                    <button id="saveTeachingMode" class="btn btn-primary mt-2">保存</button>
+                </div>
             </div>
         </div>
     </div>
@@ -60,18 +71,102 @@
             document.cookie = `${name}=${encodeURIComponent(value)}; expires=${date.toUTCString()}; path=/`;
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const refreshIntervalInput = document.getElementById('refreshInterval');
-            const saveButton = document.getElementById('saveRefreshInterval');
+        // 新增：获取当前授课模式状态
+        async function getTeachingMode() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
 
-            // 加载已设置的值
+                const response = await fetch('/api/getTeachingStatus', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return data.teaching === '1';
+                } else {
+                    console.error(data.message || '获取授课模式失败');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error fetching teaching mode:', error);
+                return false;
+            }
+        }
+
+        // 新增：设置授课模式
+        async function setTeachingMode(teaching) {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/setTeachingStatus', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session,
+                        teaching: teaching ? '1' : '0'
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    return true;
+                } else {
+                    console.error(data.message || '设置授课模式失败');
+                    return false;
+                }
+            } catch (error) {
+                console.error('Error setting teaching mode:', error);
+                return false;
+            }
+        }
+
+        // 获取 Session Cookie
+        function getSessionFromCookie() {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const refreshIntervalInput = document.getElementById('refreshInterval');
+            const saveRefreshButton = document.getElementById('saveRefreshInterval');
+            const teachingModeSwitch = document.getElementById('teachingModeSwitch');
+            const saveTeachingButton = document.getElementById('saveTeachingMode');
+
+            // 加载已设置的自动刷新时间值
             const savedInterval = getCookie('refreshInterval');
             if (savedInterval !== null) {
                 refreshIntervalInput.value = savedInterval;
             }
 
-            // 保存设置到 Cookie
-            saveButton.addEventListener('click', () => {
+            // 加载授课模式状态
+            const isTeachingMode = await getTeachingMode();
+            teachingModeSwitch.checked = isTeachingMode;
+
+            // 保存自动刷新时间设置到 Cookie
+            saveRefreshButton.addEventListener('click', () => {
                 const interval = parseInt(refreshIntervalInput.value, 10);
                 if (isNaN(interval) || interval < 0) {
                     alert('请输入有效的数字！');
@@ -80,6 +175,18 @@
                 setCookie('refreshInterval', interval, 3650); // 保存 10 年
                 alert('自动刷新时间已保存！');
                 location.reload(); // 刷新页面以应用新设置
+            });
+
+            // 保存授课模式设置
+            saveTeachingButton.addEventListener('click', async () => {
+                const isEnabled = teachingModeSwitch.checked;
+                const success = await setTeachingMode(isEnabled);
+                if (success) {
+                    alert('授课模式已保存！');
+                    // 不需要刷新页面，因为这个设置不影响当前页面
+                } else {
+                    alert('保存授课模式失败！');
+                }
             });
         });
     </script>

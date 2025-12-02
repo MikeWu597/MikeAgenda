@@ -964,6 +964,25 @@ class SQLiteManager {
         });
     }
 
+    // 新增：设置教学状态
+    async setTeachingStatus(teachingValue) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            // First try to update the existing record
+            const updateQuery = `UPDATE config SET value = ? WHERE config = 'teaching'`;
+            this.db.run(updateQuery, [teachingValue], (err) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve();
+            });
+        });
+    }
+
 }
 
 module.exports = SQLiteManager;

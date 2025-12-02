@@ -736,6 +736,37 @@ router.get('/getTeachingStatus', async (req, res) => {
     }
 });
 
+// 新增：设置授课状态 API
+router.post('/setTeachingStatus', async (req, res) => {
+    const session = req.body.session;
+    const { teaching } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    // 验证 teaching 值是否为 '0' 或 '1'
+    if (teaching !== '0' && teaching !== '1') {
+        return res.status(400).json({ success: false, message: '无效的授课状态值' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 使用 SQLiteManager 的方法设置 teaching 状态
+        await sqliteManager.setTeachingStatus(teaching);
+        
+        res.json({ success: true, message: '授课状态已更新' });
+    } catch (err) {
+        console.error('Error setting teaching status:', err.message);
+        res.status(500).json({ success: false, message: '设置授课状态失败' });
+    }
+});
+
 // 创建循环 API
 router.post('/createCycle', async (req, res) => {
     try {
