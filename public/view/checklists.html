@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>检查表</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .checklist-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .checklist-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="d-flex align-items-center">
+                <a href="/" class="text-decoration-none text-dark me-2">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                检查表
+            </h2>
+            <button id="editBtn" class="btn btn-outline-primary">
+                <i class="bi bi-pencil"></i> 编辑
+            </button>
+        </div>
+
+        <div id="checklistsContainer" class="row">
+            <!-- Checklists will be loaded here -->
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
+        // Load all checklists
+        async function loadChecklists() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getChecklists', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    renderChecklists(data.checklists);
+                } else {
+                    alert(data.message || '加载检查表失败');
+                }
+            } catch (error) {
+                console.error('Error loading checklists:', error);
+                alert('加载检查表失败，请重试');
+            }
+        }
+
+        // Render checklists
+        function renderChecklists(checklists) {
+            const container = document.getElementById('checklistsContainer');
+            container.innerHTML = '';
+
+            if (checklists.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12">
+                        <div class="alert alert-info text-center">
+                            暂无检查表
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            checklists.forEach(checklist => {
+                const card = document.createElement('div');
+                card.className = 'col-md-6 col-lg-4 mb-4';
+                card.innerHTML = `
+                    <div class="card checklist-card h-100" onclick="openChecklist(${checklist.id})">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">${checklist.name}</h5>
+                            <i class="bi bi-chevron-right text-muted"></i>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Open checklist detail page
+        function openChecklist(checklistId) {
+            window.location.href = `/view/checklist.html?id=${checklistId}`;
+        }
+
+        // Toggle edit mode
+        function toggleEditMode() {
+            window.location.href = '/view/checklists_edit.html';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChecklists();
+            
+            const editBtn = document.getElementById('editBtn');
+            editBtn.addEventListener('click', toggleEditMode);
+        });
+    </script>
+</body>
+</html>

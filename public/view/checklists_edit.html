@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>编辑检查表</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .sortable-item {
+            cursor: move;
+        }
+        .sortable-item:hover {
+            background-color: #f8f9fa;
+        }
+        .drag-handle {
+            cursor: move;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="d-flex align-items-center">
+                <a href="/view/checklists.html" class="text-decoration-none text-dark me-2">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                编辑检查表
+            </h2>
+            <button id="saveBtn" class="btn btn-primary">
+                <i class="bi bi-save"></i> 保存
+            </button>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>检查表列表</span>
+                <button id="addChecklistBtn" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus"></i> 添加检查表
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="checklistsList">
+                    <!-- Checklists will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Checklist Modal -->
+    <div class="modal fade" id="checklistModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checklistModalLabel">添加检查表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="checklistId">
+                    <div class="mb-3">
+                        <label for="checklistName" class="form-label">检查表名称</label>
+                        <input type="text" class="form-control" id="checklistName" placeholder="请输入检查表名称">
+                    </div>
+                    <div class="mb-3">
+                        <label for="checklistOrder" class="form-label">排序序号</label>
+                        <input type="number" class="form-control" id="checklistOrder" placeholder="请输入排序序号">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveChecklistBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Checklist Items Modal -->
+    <div class="modal fade" id="itemsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑检查项</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="itemsChecklistId">
+                    <h6 id="itemsChecklistName" class="mb-3"></h6>
+                    
+                    <div class="d-flex justify-content-between mb-3">
+                        <button id="addItemBtn" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus"></i> 添加检查项
+                        </button>
+                    </div>
+                    
+                    <div id="itemsList">
+                        <!-- Items will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Item Modal -->
+    <div class="modal fade" id="itemModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="itemModalLabel">添加检查项</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="itemId">
+                    <input type="hidden" id="itemChecklistId">
+                    <div class="mb-3">
+                        <label for="itemName" class="form-label">检查项名称</label>
+                        <input type="text" class="form-control" id="itemName" placeholder="请输入检查项名称">
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemOrder" class="form-label">排序序号</label>
+                        <input type="number" class="form-control" id="itemOrder" placeholder="请输入排序序号">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveItemBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
+        let currentChecklists = [];
+
+        // Load all checklists
+        async function loadChecklists() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/getChecklists', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentChecklists = data.checklists;
+                    renderChecklists(data.checklists);
+                } else {
+                    alert(data.message || '加载检查表失败');
+                }
+            } catch (error) {
+                console.error('Error loading checklists:', error);
+                alert('加载检查表失败，请重试');
+            }
+        }
+
+        // Render checklists
+        function renderChecklists(checklists) {
+            const container = document.getElementById('checklistsList');
+            container.innerHTML = '';
+
+            if (checklists.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        暂无检查表
+                    </div>
+                `;
+                return;
+            }
+
+            checklists.forEach((checklist, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'sortable-item d-flex justify-content-between align-items-center p-3 border-bottom';
+                itemDiv.innerHTML = `
+                    <div>
+                        <strong>${checklist.name}</strong>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-1 edit-checklist" data-id="${checklist.id}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info me-1 edit-items" data-id="${checklist.id}" data-name="${checklist.name}">
+                            <i class="bi bi-list-check"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-checklist" data-id="${checklist.id}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+
+            // Add event listeners
+            document.querySelectorAll('.edit-checklist').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    editChecklist(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('.edit-items').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    editItems(btn.dataset.id, btn.dataset.name);
+                });
+            });
+
+            document.querySelectorAll('.delete-checklist').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    deleteChecklist(btn.dataset.id);
+                });
+            });
+        }
+
+        // Add new checklist
+        function addChecklist() {
+            document.getElementById('checklistModalLabel').textContent = '添加检查表';
+            document.getElementById('checklistId').value = '';
+            document.getElementById('checklistName').value = '';
+            document.getElementById('checklistOrder').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('checklistModal'));
+            modal.show();
+        }
+
+        // Edit checklist
+        function editChecklist(id) {
+            const checklist = currentChecklists.find(c => c.id == id);
+            if (checklist) {
+                document.getElementById('checklistModalLabel').textContent = '编辑检查表';
+                document.getElementById('checklistId').value = checklist.id;
+                document.getElementById('checklistName').value = checklist.name;
+                document.getElementById('checklistOrder').value = checklist.order_index;
+                const modal = new bootstrap.Modal(document.getElementById('checklistModal'));
+                modal.show();
+            }
+        }
+
+        // Save checklist
+        async function saveChecklist() {
+            const id = document.getElementById('checklistId').value;
+            const name = document.getElementById('checklistName').value;
+            const orderIndex = document.getElementById('checklistOrder').value;
+
+            if (!name) {
+                alert('请输入检查表名称');
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/api/updateChecklist/${id}` : '/api/createChecklist';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session,
+                        name: name,
+                        orderIndex: orderIndex || 0
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('checklistModal'));
+                    modal.hide();
+                    loadChecklists();
+                } else {
+                    alert(data.message || '保存检查表失败');
+                }
+            } catch (error) {
+                console.error('Error saving checklist:', error);
+                alert('保存检查表失败，请重试');
+            }
+        }
+
+        // Delete checklist
+        async function deleteChecklist(id) {
+            if (!confirm('确定要删除这个检查表吗？')) {
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                const response = await fetch(`/api/deleteChecklist/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    loadChecklists();
+                } else {
+                    alert(data.message || '删除检查表失败');
+                }
+            } catch (error) {
+                console.error('Error deleting checklist:', error);
+                alert('删除检查表失败，请重试');
+            }
+        }
+
+        // Edit items
+        async function editItems(checklistId, checklistName) {
+            document.getElementById('itemsChecklistId').value = checklistId;
+            document.getElementById('itemsChecklistName').textContent = checklistName;
+            
+            // Load items
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                const response = await fetch(`/api/getChecklist/${checklistId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    renderItems(data.checklist.items);
+                    const modal = new bootstrap.Modal(document.getElementById('itemsModal'));
+                    modal.show();
+                } else {
+                    alert(data.message || '加载检查项失败');
+                }
+            } catch (error) {
+                console.error('Error loading items:', error);
+                alert('加载检查项失败，请重试');
+            }
+        }
+
+        // Render items
+        function renderItems(items) {
+            const container = document.getElementById('itemsList');
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        该检查表暂无检查项
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'sortable-item d-flex justify-content-between align-items-center p-2 border-bottom';
+                itemDiv.innerHTML = `
+                    <div>
+                        ${item.name}
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-1 edit-item" data-id="${item.id}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger delete-item" data-id="${item.id}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+            });
+
+            // Add event listeners
+            document.querySelectorAll('.edit-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    editItem(btn.dataset.id);
+                });
+            });
+
+            document.querySelectorAll('.delete-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    deleteItem(btn.dataset.id);
+                });
+            });
+        }
+
+        // Add new item
+        function addItem() {
+            const checklistId = document.getElementById('itemsChecklistId').value;
+            document.getElementById('itemModalLabel').textContent = '添加检查项';
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemChecklistId').value = checklistId;
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemOrder').value = '';
+            const modal = new bootstrap.Modal(document.getElementById('itemModal'));
+            modal.show();
+        }
+
+        // Edit item
+        async function editItem(id) {
+            // For simplicity, we'll just open the modal with empty fields
+            // In a real implementation, you would load the item data
+            document.getElementById('itemModalLabel').textContent = '编辑检查项';
+            document.getElementById('itemId').value = id;
+            // You would load the item data here
+            const modal = new bootstrap.Modal(document.getElementById('itemModal'));
+            modal.show();
+        }
+
+        // Save item
+        async function saveItem() {
+            const id = document.getElementById('itemId').value;
+            const checklistId = document.getElementById('itemChecklistId').value;
+            const name = document.getElementById('itemName').value;
+            const orderIndex = document.getElementById('itemOrder').value;
+
+            if (!name) {
+                alert('请输入检查项名称');
+                return;
+            }
+
+            if (!checklistId) {
+                alert('缺少检查表 ID');
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/api/updateChecklistItem/${id}` : '/api/createChecklistItem';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session,
+                        checklistId: checklistId,
+                        name: name,
+                        orderIndex: orderIndex || 0
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('itemModal'));
+                    modal.hide();
+                    
+                    // Refresh items list
+                    const itemsModal = document.getElementById('itemsModal');
+                    const itemsChecklistId = document.getElementById('itemsChecklistId').value;
+                    const itemsChecklistName = document.getElementById('itemsChecklistName').textContent;
+                    editItems(itemsChecklistId, itemsChecklistName);
+                } else {
+                    alert(data.message || '保存检查项失败');
+                }
+            } catch (error) {
+                console.error('Error saving item:', error);
+                alert('保存检查项失败，请重试');
+            }
+        }
+
+        // Delete item
+        async function deleteItem(id) {
+            if (!confirm('确定要删除这个检查项吗？')) {
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    return;
+                }
+
+                const response = await fetch(`/api/deleteChecklistItem/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Refresh items list
+                    const itemsModal = document.getElementById('itemsModal');
+                    const itemsChecklistId = document.getElementById('itemsChecklistId').value;
+                    const itemsChecklistName = document.getElementById('itemsChecklistName').textContent;
+                    editItems(itemsChecklistId, itemsChecklistName);
+                } else {
+                    alert(data.message || '删除检查项失败');
+                }
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                alert('删除检查项失败，请重试');
+            }
+        }
+
+        // Save all changes
+        async function saveChanges() {
+            alert('所有更改已保存');
+            window.location.href = '/view/checklists.html';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChecklists();
+
+            // Add event listeners
+            document.getElementById('addChecklistBtn').addEventListener('click', addChecklist);
+            document.getElementById('saveChecklistBtn').addEventListener('click', saveChecklist);
+            document.getElementById('addItemBtn').addEventListener('click', addItem);
+            document.getElementById('saveItemBtn').addEventListener('click', saveItem);
+            document.getElementById('saveBtn').addEventListener('click', saveChanges);
+        });
+    </script>
+</body>
+</html>

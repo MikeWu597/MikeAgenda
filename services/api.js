@@ -1654,4 +1654,312 @@ router.get('/getProjectRecords/:projectId', async (req, res) => {
     }
 });
 
+// 新增：设置授课状态 API
+router.post('/setTeachingStatus', async (req, res) => {
+    const session = req.body.session;
+    const { teaching } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    // 验证 teaching 值是否为 '0' 或 '1'
+    if (teaching !== '0' && teaching !== '1') {
+        return res.status(400).json({ success: false, message: '无效的授课状态值' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        // 使用 SQLiteManager 的方法设置 teaching 状态
+        await sqliteManager.setTeachingStatus(teaching);
+        
+        res.json({ success: true, message: '授课状态已更新' });
+    } catch (err) {
+        console.error('Error setting teaching status:', err.message);
+        res.status(500).json({ success: false, message: '设置授课状态失败' });
+    }
+});
+
+// 新增：创建检查表 API
+router.post('/createChecklist', async (req, res) => {
+    const session = req.body.session;
+    const { name, orderIndex } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!name) {
+        return res.status(400).json({ success: false, message: '缺少检查表名称' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const checklistId = await sqliteManager.createChecklist(name, orderIndex || 0);
+        res.json({ success: true, message: '检查表创建成功', id: checklistId });
+    } catch (err) {
+        console.error('Error creating checklist:', err.message);
+        res.status(500).json({ success: false, message: '创建检查表失败' });
+    }
+});
+
+// 新增：获取所有检查表 API
+router.get('/getChecklists', async (req, res) => {
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const checklists = await sqliteManager.getChecklists();
+        res.json({ success: true, checklists });
+    } catch (err) {
+        console.error('Error fetching checklists:', err.message);
+        res.status(500).json({ success: false, message: '获取检查表失败' });
+    }
+});
+
+// 新增：获取检查表详情 API
+router.get('/getChecklist/:id', async (req, res) => {
+    const session = req.headers['session'];
+    const checklistId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!checklistId) {
+        return res.status(400).json({ success: false, message: '缺少检查表 ID' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const checklist = await sqliteManager.getChecklistDetails(checklistId);
+        if (!checklist) {
+            return res.status(404).json({ success: false, message: '检查表未找到' });
+        }
+
+        res.json({ success: true, checklist });
+    } catch (err) {
+        console.error('Error fetching checklist:', err.message);
+        res.status(500).json({ success: false, message: '获取检查表详情失败' });
+    }
+});
+
+// 新增：更新检查表 API
+router.put('/updateChecklist/:id', async (req, res) => {
+    const session = req.body.session;
+    const checklistId = req.params.id;
+    const { name, orderIndex } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!checklistId) {
+        return res.status(400).json({ success: false, message: '缺少检查表 ID' });
+    }
+
+    if (!name) {
+        return res.status(400).json({ success: false, message: '缺少检查表名称' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const updated = await sqliteManager.updateChecklist(checklistId, name, orderIndex || 0);
+        if (updated) {
+            res.json({ success: true, message: '检查表更新成功' });
+        } else {
+            res.status(404).json({ success: false, message: '检查表未找到' });
+        }
+    } catch (err) {
+        console.error('Error updating checklist:', err.message);
+        res.status(500).json({ success: false, message: '更新检查表失败' });
+    }
+});
+
+// 新增：删除检查表 API
+router.delete('/deleteChecklist/:id', async (req, res) => {
+    const session = req.body.session;
+    const checklistId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!checklistId) {
+        return res.status(400).json({ success: false, message: '缺少检查表 ID' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const deleted = await sqliteManager.deleteChecklist(checklistId);
+        if (deleted) {
+            res.json({ success: true, message: '检查表删除成功' });
+        } else {
+            res.status(404).json({ success: false, message: '检查表未找到' });
+        }
+    } catch (err) {
+        console.error('Error deleting checklist:', err.message);
+        res.status(500).json({ success: false, message: '删除检查表失败' });
+    }
+});
+
+// 新增：创建检查项 API
+router.post('/createChecklistItem', async (req, res) => {
+    const session = req.body.session;
+    const { checklistId, name, orderIndex } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!checklistId || !name) {
+        return res.status(400).json({ success: false, message: '缺少必要字段' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const itemId = await sqliteManager.createChecklistItem(checklistId, name, orderIndex || 0);
+        res.json({ success: true, message: '检查项创建成功', id: itemId });
+    } catch (err) {
+        console.error('Error creating checklist item:', err.message);
+        res.status(500).json({ success: false, message: '创建检查项失败' });
+    }
+});
+
+// 新增：更新检查项 API
+router.put('/updateChecklistItem/:id', async (req, res) => {
+    const session = req.body.session;
+    const itemId = req.params.id;
+    const { name, orderIndex, checked } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!itemId || !name) {
+        return res.status(400).json({ success: false, message: '缺少必要字段' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const updated = await sqliteManager.updateChecklistItem(itemId, name, orderIndex || 0, checked);
+        if (updated) {
+            res.json({ success: true, message: '检查项更新成功' });
+        } else {
+            res.status(404).json({ success: false, message: '检查项未找到' });
+        }
+    } catch (err) {
+        console.error('Error updating checklist item:', err.message);
+        res.status(500).json({ success: false, message: '更新检查项失败' });
+    }
+});
+
+// 新增：删除检查项 API
+router.delete('/deleteChecklistItem/:id', async (req, res) => {
+    const session = req.body.session;
+    const itemId = req.params.id;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!itemId) {
+        return res.status(400).json({ success: false, message: '缺少检查项 ID' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const deleted = await sqliteManager.deleteChecklistItem(itemId);
+        if (deleted) {
+            res.json({ success: true, message: '检查项删除成功' });
+        } else {
+            res.status(404).json({ success: false, message: '检查项未找到' });
+        }
+    } catch (err) {
+        console.error('Error deleting checklist item:', err.message);
+        res.status(500).json({ success: false, message: '删除检查项失败' });
+    }
+});
+
+// 新增：更新检查项状态 API
+router.post('/updateChecklistItemStatus', async (req, res) => {
+    const session = req.body.session;
+    const { id, checked } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    if (!id) {
+        return res.status(400).json({ success: false, message: '缺少检查项 ID' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const updated = await sqliteManager.updateChecklistItemStatus(id, checked);
+        if (updated) {
+            res.json({ success: true, message: '检查项状态更新成功' });
+        } else {
+            res.status(404).json({ success: false, message: '检查项未找到' });
+        }
+    } catch (err) {
+        console.error('Error updating checklist item status:', err.message);
+        res.status(500).json({ success: false, message: '更新检查项状态失败' });
+    }
+});
+
 module.exports = router;

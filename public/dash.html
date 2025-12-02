@@ -381,6 +381,10 @@
         <div class="expanded-menu-btn" id="toolBtnNoodleOrder">
             <i class="bi bi-fork-knife"></i>
         </div>
+        <!-- 新增: 检查表按钮 -->
+        <div class="expanded-menu-btn" id="toolBtnChecklists">
+            <i class="bi bi-clipboard-check"></i>
+        </div>
     </div>
 
     <div id="calendarModal" class="modal">
@@ -717,6 +721,11 @@
             // 新增: 遇见小面点餐系统按钮事件
             toolBtnNoodleOrder.addEventListener('click', function() {
                 window.open('https://h5.xiaonoodles.com/materialQrcodeId=1839797535331319808', '_blank');
+            });
+
+            // 新增: 检查表按钮事件
+            toolBtnChecklists.addEventListener('click', function() {
+                window.location.href = '/view/checklists.html';
             });
 
             // 项目管理按钮事件

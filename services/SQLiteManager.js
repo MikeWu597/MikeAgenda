@@ -148,6 +148,27 @@ class SQLiteManager {
             );
         `;
 
+        // 新增：创建 checklist 表
+        const createChecklistTableQuery = `
+            CREATE TABLE IF NOT EXISTS checklist (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                order_index INTEGER NOT NULL DEFAULT 0
+            );
+        `;
+
+        // 新增：创建 checklist_item 表
+        const createChecklistItemTableQuery = `
+            CREATE TABLE IF NOT EXISTS checklist_item (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                checklist_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                order_index INTEGER NOT NULL DEFAULT 0,
+                checked BOOLEAN DEFAULT 0,
+                FOREIGN KEY (checklist_id) REFERENCES checklist (id) ON DELETE CASCADE
+            );
+        `;
+
         return new Promise((resolve, reject) => {
             this.db.run(createSessionsTableQuery, (err) => {
                 if (err) {
@@ -192,7 +213,21 @@ class SQLiteManager {
                                                                                         if (err) {
                                                                                             reject(err);
                                                                                         } else {
-                                                                                            resolve();
+                                                                                            // 创建 checklist 表
+                                                                                            this.db.run(createChecklistTableQuery, (err) => {
+                                                                                                if (err) {
+                                                                                                    reject(err);
+                                                                                                } else {
+                                                                                                    // 创建 checklist_item 表
+                                                                                                    this.db.run(createChecklistItemTableQuery, (err) => {
+                                                                                                        if (err) {
+                                                                                                            reject(err);
+                                                                                                        } else {
+                                                                                                            resolve();
+                                                                                                        }
+                                                                                                    });
+                                                                                                }
+                                                                                            });
                                                                                         }
                                                                                     });
                                                                                 }
@@ -978,7 +1013,202 @@ class SQLiteManager {
                     reject(err);
                     return;
                 }
-                resolve();
+                
+                // Check if any rows were affected
+                if (this.db.changes > 0) {
+                    // Successfully updated
+                    resolve();
+                } else {
+                    // No rows were updated, so insert a new record
+                    const insertQuery = `INSERT INTO config (config, value) VALUES ('teaching', ?)`;
+                    this.db.run(insertQuery, [teachingValue], (err) => {
+                        if (err) {
+                            reject(err);
+                        } else {
+                            resolve();
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // 新增：创建检查表
+    async createChecklist(name, orderIndex) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `INSERT INTO checklist (name, order_index) VALUES (?, ?)`;
+            this.db.run(query, [name, orderIndex], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：获取所有检查表
+    async getChecklists() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `SELECT * FROM checklist ORDER BY order_index ASC`;
+            this.db.all(query, [], (err, rows) => {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(rows);
+                }
+            });
+        });
+    }
+
+    // 新增：获取检查表详情（包括检查项）
+    async getChecklistDetails(checklistId) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            // 获取检查表信息
+            const checklistQuery = `SELECT * FROM checklist WHERE id = ?`;
+            this.db.get(checklistQuery, [checklistId], (err, checklistRow) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                
+                if (!checklistRow) {
+                    resolve(null);
+                    return;
+                }
+                
+                // 获取检查项信息
+                const itemsQuery = `SELECT * FROM checklist_item WHERE checklist_id = ? ORDER BY order_index ASC`;
+                this.db.all(itemsQuery, [checklistId], (err, itemRows) => {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({
+                            ...checklistRow,
+                            items: itemRows
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    // 新增：更新检查表
+    async updateChecklist(id, name, orderIndex) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `UPDATE checklist SET name = ?, order_index = ? WHERE id = ?`;
+            this.db.run(query, [name, orderIndex, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除检查表
+    async deleteChecklist(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `DELETE FROM checklist WHERE id = ?`;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：创建检查项
+    async createChecklistItem(checklistId, name, orderIndex) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `INSERT INTO checklist_item (checklist_id, name, order_index) VALUES (?, ?, ?)`;
+            this.db.run(query, [checklistId, name, orderIndex], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.lastID);
+                }
+            });
+        });
+    }
+
+    // 新增：更新检查项
+    async updateChecklistItem(id, name, orderIndex, checked) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `UPDATE checklist_item SET name = ?, order_index = ?, checked = ? WHERE id = ?`;
+            this.db.run(query, [name, orderIndex, checked ? 1 : 0, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：删除检查项
+    async deleteChecklistItem(id) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `DELETE FROM checklist_item WHERE id = ?`;
+            this.db.run(query, [id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
+            });
+        });
+    }
+
+    // 新增：更新检查项状态
+    async updateChecklistItemStatus(id, checked) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+            
+            const query = `UPDATE checklist_item SET checked = ? WHERE id = ?`;
+            this.db.run(query, [checked ? 1 : 0, id], function(err) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(this.changes > 0);
+                }
             });
         });
     }

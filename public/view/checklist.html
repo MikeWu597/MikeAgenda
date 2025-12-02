@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>检查表详情</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .checklist-item {
+            transition: all 0.3s ease;
+        }
+        .checklist-item.checked .form-check-label {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="d-flex align-items-center">
+                <a href="/view/checklists.html" class="text-decoration-none text-dark me-2">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+                <span id="checklistName">检查表</span>
+            </h2>
+        </div>
+
+        <div id="itemsContainer">
+            <!-- Checklist items will be loaded here -->
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const getSessionFromCookie = () => {
+            const cookies = document.cookie.split('; ');
+            for (const cookie of cookies) {
+                const [name, value] = cookie.split('=');
+                if (name === 'session') {
+                    return decodeURIComponent(value);
+                }
+            }
+            return null;
+        };
+
+        // Get checklist ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const checklistId = urlParams.get('id');
+
+        // Load checklist details
+        async function loadChecklist() {
+            if (!checklistId) {
+                alert('缺少检查表 ID');
+                window.location.href = '/view/checklists.html';
+                return;
+            }
+
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch(`/api/getChecklist/${checklistId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('checklistName').textContent = data.checklist.name;
+                    renderItems(data.checklist.items);
+                } else {
+                    alert(data.message || '加载检查表详情失败');
+                }
+            } catch (error) {
+                console.error('Error loading checklist:', error);
+                alert('加载检查表详情失败，请重试');
+            }
+        }
+
+        // Render checklist items
+        function renderItems(items) {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = '';
+
+            if (items.length === 0) {
+                container.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        该检查表暂无检查项
+                    </div>
+                `;
+                return;
+            }
+
+            items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = `checklist-item card mb-3 ${item.checked ? 'checked' : ''}`;
+                itemDiv.innerHTML = `
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="item${item.id}" 
+                                ${item.checked ? 'checked' : ''}>
+                            <label class="form-check-label" for="item${item.id}">
+                                ${item.name}
+                            </label>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(itemDiv);
+
+                // Add event listener for checkbox
+                const checkbox = itemDiv.querySelector(`#item${item.id}`);
+                checkbox.addEventListener('change', () => {
+                    updateItemStatus(item.id, checkbox.checked);
+                    itemDiv.classList.toggle('checked', checkbox.checked);
+                });
+            });
+        }
+
+        // Update item status
+        async function updateItemStatus(itemId, checked) {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const response = await fetch('/api/updateChecklistItemStatus', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    },
+                    body: JSON.stringify({ 
+                        session: session,
+                        id: itemId,
+                        checked: checked
+                    })
+                });
+
+                const data = await response.json();
+                if (!data.success) {
+                    alert(data.message || '更新检查项状态失败');
+                }
+            } catch (error) {
+                console.error('Error updating item status:', error);
+                alert('更新检查项状态失败，请重试');
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadChecklist();
+        });
+    </script>
+</body>
+</html>
