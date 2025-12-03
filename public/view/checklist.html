@@ -14,6 +14,17 @@
             text-decoration: line-through;
             color: #6c757d;
         }
+        /* Add light blue background for checked items */
+        .checklist-item.checked {
+            background-color: #e3f2fd;
+        }
+        /* Style for the completion checkmark */
+        .completion-checkmark {
+            font-size: 5rem;
+            color: #007bff;
+            text-align: center;
+            padding: 3rem;
+        }
     </style>
 </head>
 <body>
@@ -25,6 +36,9 @@
                 </a>
                 <span id="checklistName">检查表</span>
             </h2>
+            <button id="clearAllBtn" class="btn btn-outline-secondary btn-sm" style="display: none;">
+                清空所有
+            </button>
         </div>
 
         <div id="itemsContainer">
@@ -91,14 +105,40 @@
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
 
+            // Check if all items are completed
+            const allCompleted = items.length > 0 && items.every(item => item.checked);
+            
+            if (allCompleted) {
+                // Display a large checkmark when all items are completed
+                container.innerHTML = `
+                    <div class="completion-checkmark">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="text-center">
+                        <button id="resetChecklistBtn" class="btn btn-outline-primary mt-3">
+                            重新开始检查表
+                        </button>
+                    </div>
+                `;
+                document.getElementById('clearAllBtn').style.display = 'none';
+                document.getElementById('resetChecklistBtn').addEventListener('click', resetChecklist);
+
+                return;
+            }
+
             if (items.length === 0) {
                 container.innerHTML = `
                     <div class="alert alert-info text-center">
                         该检查表暂无检查项
                     </div>
                 `;
+                document.getElementById('clearAllBtn').style.display = 'none';
                 return;
             }
+
+            // Show clear all button if there are checked items
+            const hasCheckedItems = items.some(item => item.checked);
+            document.getElementById('clearAllBtn').style.display = hasCheckedItems ? 'block' : 'none';
 
             items.forEach(item => {
                 const itemDiv = document.createElement('div');
@@ -121,8 +161,98 @@
                 checkbox.addEventListener('change', () => {
                     updateItemStatus(item.id, checkbox.checked);
                     itemDiv.classList.toggle('checked', checkbox.checked);
+                    
+                    // Update clear all button visibility
+                    updateClearAllButtonVisibility();
+                    
+                    // Check if all items are now completed
+                    setTimeout(() => {
+                        checkAllItemsCompleted();
+                    }, 100);
                 });
             });
+        }
+
+        // Check if all items are completed and update display accordingly
+        function checkAllItemsCompleted() {
+            const checkboxes = document.querySelectorAll('.form-check-input');
+            if (checkboxes.length > 0) {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                if (allChecked) {
+                    renderCompletionMessage();
+                }
+            }
+        }
+
+        // Render the completion message with a large checkmark and reset button
+        function renderCompletionMessage() {
+            const container = document.getElementById('itemsContainer');
+            container.innerHTML = `
+                <div class="text-center p-4">
+                    <div class="completion-checkmark">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div class="text-center">
+                        <button id="resetChecklistBtn" class="btn btn-outline-primary mt-3">
+                            重新开始检查表
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('clearAllBtn').style.display = 'none';
+            
+            // Add event listener to reset button
+            document.getElementById('resetChecklistBtn').addEventListener('click', resetChecklist);
+        }
+
+        // Reset the checklist by unchecking all items
+        async function resetChecklist() {
+            try {
+                const session = getSessionFromCookie();
+                if (!session) {
+                    alert('未授权，请重新登录');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                // Get all items from the checklist
+                const response = await fetch(`/api/getChecklist/${checklistId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'session': session
+                    }
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    // Create array of promises to uncheck all items
+                    const updatePromises = data.checklist.items.map(item => {
+                        return updateItemStatus(item.id, false);
+                    });
+                    
+                    // Wait for all updates to complete
+                    await Promise.all(updatePromises);
+                    
+                    // Reload the checklist to show all items unchecked
+                    loadChecklist();
+                } else {
+                    alert(data.message || '重置检查表失败');
+                }
+            } catch (error) {
+                console.error('Error resetting checklist:', error);
+                alert('重置检查表失败，请重试');
+            }
+        }
+
+        // Update clear all button visibility based on checked items
+        function updateClearAllButtonVisibility() {
+            const checkboxes = document.querySelectorAll('.form-check-input');
+            const hasCheckedItems = Array.from(checkboxes).some(cb => cb.checked);
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            // Only show clear button if there are checked items but not all items are checked
+            document.getElementById('clearAllBtn').style.display = (hasCheckedItems && !allChecked) ? 'block' : 'none';
         }
 
         // Update item status
@@ -158,9 +288,42 @@
             }
         }
 
+        // Clear all checked items
+        async function clearAllItems() {
+            const checkboxes = document.querySelectorAll('.form-check-input:checked');
+            
+            // Create array of promises for all updates
+            const updatePromises = Array.from(checkboxes).map(checkbox => {
+                const itemId = checkbox.id.replace('item', '');
+                checkbox.checked = false;
+                const itemDiv = checkbox.closest('.checklist-item');
+                if (itemDiv) {
+                    itemDiv.classList.remove('checked');
+                }
+                return updateItemStatus(itemId, false);
+            });
+            
+            try {
+                // Wait for all updates to complete
+                await Promise.all(updatePromises);
+                
+                // Hide the clear all button since no items are checked now
+                document.getElementById('clearAllBtn').style.display = 'none';
+                
+                // Reload the checklist to show all items again
+                loadChecklist();
+            } catch (error) {
+                console.error('Error clearing all items:', error);
+                alert('清空所有项目失败，请重试');
+            }
+        }
+
         // Initialize page
         document.addEventListener('DOMContentLoaded', () => {
             loadChecklist();
+            
+            // Add event listener to clear all button
+            document.getElementById('clearAllBtn').addEventListener('click', clearAllItems);
         });
     </script>
 </body>
