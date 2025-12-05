@@ -2,6 +2,20 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 class SQLiteManager {
+
+    getLocalTimeString() {
+        // 获取当前本地时间（东八区）
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const localTimeString = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        return localTimeString;
+    }
+    
     constructor() {
         this.db = null;
     }
@@ -834,12 +848,12 @@ class SQLiteManager {
                     reject(new Error('Project not found or deleted'));
                     return;
                 }
-                
+                                
                 const query = `
-                    INSERT INTO project_record (project_id)
-                    VALUES (?)
+                    INSERT INTO project_record (project_id, timestamp)
+                    VALUES (?, ?)
                 `;
-                this.db.run(query, [projectId], function(err) {
+                this.db.run(query, [projectId, this.getLocalTimeString()], function(err) {
                     if (err) {
                         reject(err);
                     } else {
