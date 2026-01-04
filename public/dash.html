@@ -385,6 +385,11 @@
         <div class="expanded-menu-btn" id="toolBtnChecklists">
             <i class="bi bi-clipboard-check"></i>
         </div>
+
+        <!-- 新增: 农场最新图片 -->
+        <div class="expanded-menu-btn" id="toolBtnFarm">
+            <i class="bi bi-camera"></i>
+        </div>
     </div>
 
     <div id="calendarModal" class="modal">
@@ -738,6 +743,11 @@
             // 新增: 检查表按钮事件
             toolBtnChecklists.addEventListener('click', function() {
                 window.location.href = '/view/checklists.html';
+            });
+
+            // 新增: 农场最新图片
+            toolBtnFarm.addEventListener('click', function() {
+                window.location.href = '/tool/farm.html';
             });
 
             // 项目管理按钮事件

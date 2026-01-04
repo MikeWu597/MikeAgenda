@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>农场最新图片</title>
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-10 col-lg-8">
+                <h2 class="mb-4">
+                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    农场最新图片
+                </h2>
+
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="text-muted" style="font-size: 0.9rem;">点击“刷新”或点击图片重新加载</div>
+                    <button class="btn btn-primary btn-sm" id="refreshBtn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        刷新
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body p-2">
+                        <img id="latestImg" src="/farm/latest.png" alt="latest" class="img-fluid" style="width: 100%; cursor: pointer;" />
+                    </div>
+                </div>
+
+                <div class="text-muted mt-2" id="status" style="font-size: 0.85rem;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const img = document.getElementById('latestImg');
+        const statusEl = document.getElementById('status');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        function refreshImage() {
+            const t = Date.now();
+            img.src = `/farm/latest.png?t=${t}`;
+            statusEl.textContent = `已刷新：${new Date().toLocaleTimeString()}`;
+        }
+
+        refreshBtn.addEventListener('click', refreshImage);
+        img.addEventListener('click', refreshImage);
+
+        img.addEventListener('error', () => {
+            statusEl.textContent = '暂无图片或加载失败（请确认 ESP 已上传）';
+        });
+    </script>
+</body>
+</html>
