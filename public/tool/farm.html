@@ -26,6 +26,14 @@
                     </button>
                 </div>
 
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="text-muted" style="font-size: 0.9rem;">电压：<span id="voltageVal">--</span></div>
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="text-muted" style="font-size: 0.9rem;">采集时间：<span id="captureTime">--</span></div>
+                </div>
+
                 <div class="card">
                     <div class="card-body p-2">
                         <img id="latestImg" src="/farm/latest.png" alt="latest" class="img-fluid" style="width: 100%; cursor: pointer;" />
@@ -42,18 +50,81 @@
         const img = document.getElementById('latestImg');
         const statusEl = document.getElementById('status');
         const refreshBtn = document.getElementById('refreshBtn');
+        const voltageValEl = document.getElementById('voltageVal');
+        const captureTimeEl = document.getElementById('captureTime');
+
+        async function refreshCaptureTime(t) {
+            try {
+                const q = t ? `?t=${t}` : '';
+                const res = await fetch(`/farm/latest.png${q}`, { method: 'HEAD', cache: 'no-store' });
+                if (!res.ok) {
+                    captureTimeEl.textContent = '--';
+                    return;
+                }
+                const lm = res.headers.get('last-modified');
+                if (!lm) {
+                    captureTimeEl.textContent = '--';
+                    return;
+                }
+                const d = new Date(lm);
+                if (Number.isNaN(d.getTime())) {
+                    captureTimeEl.textContent = '--';
+                    return;
+                }
+                captureTimeEl.textContent = d.toLocaleString('zh-CN');
+            } catch (e) {
+                captureTimeEl.textContent = '--';
+            }
+        }
 
         function refreshImage() {
             const t = Date.now();
             img.src = `/farm/latest.png?t=${t}`;
             statusEl.textContent = `已刷新：${new Date().toLocaleTimeString()}`;
+            refreshCaptureTime(t);
         }
 
-        refreshBtn.addEventListener('click', refreshImage);
-        img.addEventListener('click', refreshImage);
+        async function refreshVoltage() {
+            try {
+                const t = Date.now();
+                const res = await fetch(`/farm/latest.txt?t=${t}`, { cache: 'no-store' });
+                if (!res.ok) {
+                    voltageValEl.textContent = '--';
+                    return;
+                }
+                const txt = (await res.text()).trim();
+                const mv = Number.parseInt(txt, 10);
+                if (!Number.isFinite(mv) || mv <= 0) {
+                    voltageValEl.textContent = '--';
+                    return;
+                }
+                const v = (mv / 1000);
+                voltageValEl.textContent = `${v.toFixed(2)} V (${mv} mV)`;
+            } catch (e) {
+                voltageValEl.textContent = '--';
+            }
+        }
+
+        function refreshAll() {
+            refreshImage();
+            refreshVoltage();
+        }
+
+        refreshBtn.addEventListener('click', refreshAll);
+        img.addEventListener('click', refreshAll);
+
+        // Auto-refresh voltage periodically.
+        refreshVoltage();
+        setInterval(refreshVoltage, 5000);
 
         img.addEventListener('error', () => {
             statusEl.textContent = '暂无图片或加载失败（请确认 ESP 已上传）';
+            captureTimeEl.textContent = '--';
+        });
+
+        img.addEventListener('load', () => {
+            // If user hasn't clicked refresh yet, still show capture time.
+            refreshCaptureTime();
         });
     </script>
 </body>
