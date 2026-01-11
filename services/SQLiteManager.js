@@ -272,26 +272,69 @@ class SQLiteManager {
                 reject(new Error('Database not initialized'));
             }
             
-            // 检查是否已有 teaching 配置
-            const checkConfigQuery = `SELECT value FROM config WHERE config = 'teaching'`;
-            this.db.get(checkConfigQuery, [], (err, row) => {
-                if (err) {
-                    reject(err);
-                } else {
-                    // 如果没有 teaching 配置，则插入默认值
-                    if (!row) {
-                        const insertConfigQuery = `INSERT INTO config (config, value) VALUES ('teaching', '1')`;
-                        this.db.run(insertConfigQuery, [], (err) => {
-                            if (err) {
-                                reject(err);
-                            } else {
-                                resolve();
-                            }
-                        });
-                    } else {
-                        resolve();
-                    }
-                }
+            // 检查并确保 teaching 与 image_storage_limit 配置存在
+            const ensureConfig = (key, defaultValue) => {
+                return new Promise((res, rej) => {
+                    const q = `SELECT value FROM config WHERE config = ?`;
+                    this.db.get(q, [key], (err, row) => {
+                        if (err) return rej(err);
+                        if (!row) {
+                            const insertQuery = `INSERT INTO config (config, value) VALUES (?, ?)`;
+                            this.db.run(insertQuery, [key, String(defaultValue)], (err) => {
+                                if (err) return rej(err);
+                                return res();
+                            });
+                        } else {
+                            return res();
+                        }
+                    });
+                });
+            };
+
+            // teaching 默认 '1'，image_storage_limit 默认 50MB
+            Promise.all([
+                ensureConfig('teaching', '1'),
+                ensureConfig('image_storage_limit', String(50 * 1024 * 1024))
+            ]).then(() => resolve()).catch(reject);
+        });
+    }
+
+    // 获取图片存储限制（字节），若未设置返回默认值（50MB）
+    async getImageStorageLimit() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const query = `SELECT value FROM config WHERE config = 'image_storage_limit'`;
+            this.db.get(query, [], (err, row) => {
+                if (err) return reject(err);
+                if (!row) return resolve(50 * 1024 * 1024);
+                const v = parseInt(row.value, 10);
+                if (!Number.isFinite(v) || v <= 0) return resolve(50 * 1024 * 1024);
+                resolve(v);
+            });
+        });
+    }
+
+    // 设置图片存储限制（以字节字符串形式存储）
+    async setImageStorageLimit(limitValue) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                reject(new Error('Database not initialized'));
+            }
+
+            const updateQuery = `UPDATE config SET value = ? WHERE config = 'image_storage_limit'`;
+            this.db.run(updateQuery, [String(limitValue)], (err) => {
+                if (err) return reject(err);
+
+                if (this.db.changes > 0) return resolve();
+
+                const insertQuery = `INSERT INTO config (config, value) VALUES ('image_storage_limit', ?)`;
+                this.db.run(insertQuery, [String(limitValue)], (err) => {
+                    if (err) return reject(err);
+                    resolve();
+                });
             });
         });
     }

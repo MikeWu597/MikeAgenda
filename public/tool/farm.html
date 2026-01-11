@@ -40,6 +40,15 @@
                     </div>
                 </div>
 
+                <div class="mt-3">
+                    <label class="form-label">时间轴（可拖动查看历史图片）</label>
+                    <input type="range" class="form-range" id="timeSlider" min="0" max="0" value="0">
+                    <div class="d-flex justify-content-between mt-1">
+                        <div class="text-muted" id="selectedTime">当前：最新</div>
+                        <div class="text-muted">总占用：<span id="totalSize">--</span></div>
+                    </div>
+                </div>
+
                 <div class="text-muted mt-2" id="status" style="font-size: 0.85rem;"></div>
             </div>
         </div>
@@ -126,6 +135,59 @@
             // If user hasn't clicked refresh yet, still show capture time.
             refreshCaptureTime();
         });
+
+        // 时间轴逻辑
+        const timeSlider = document.getElementById('timeSlider');
+        const selectedTimeEl = document.getElementById('selectedTime');
+        const totalSizeEl = document.getElementById('totalSize');
+        let imagesList = [];
+
+        function humanSize(bytes) {
+            if (!bytes || bytes <= 0) return '0 B';
+            const units = ['B','KB','MB','GB'];
+            let i = 0; let v = bytes;
+            while (v >= 1024 && i < units.length-1) { v /= 1024; i++; }
+            return `${v.toFixed(2)} ${units[i]}`;
+        }
+
+        async function fetchImages() {
+            try {
+                const res = await fetch('/farm/images', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!data || !data.images) return;
+                imagesList = data.images;
+                const len = imagesList.length;
+                timeSlider.max = Math.max(0, len - 1);
+                timeSlider.value = Math.max(0, len - 1);
+                totalSizeEl.textContent = humanSize(data.total || 0);
+                updateImageByIndex(timeSlider.value);
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function updateImageByIndex(idx) {
+            const i = Number(idx);
+            if (!imagesList || imagesList.length === 0) {
+                selectedTimeEl.textContent = '当前：最新';
+                img.src = `/farm/latest.png?t=${Date.now()}`;
+                return;
+            }
+            const item = imagesList[i];
+            if (!item) return;
+            selectedTimeEl.textContent = `当前：${new Date(item.mtime).toLocaleString()}`;
+            img.src = `/farm/images/${item.name}?t=${Date.now()}`;
+        }
+
+        timeSlider.addEventListener('input', (e) => {
+            updateImageByIndex(e.target.value);
+        });
+
+        // 初始获取
+        fetchImages();
+        // 周期刷新列表以获取新图片和大小变化
+        setInterval(fetchImages, 5000);
     </script>
 </body>
 </html>

@@ -47,6 +47,16 @@
                     </div>
                     <button id="saveTeachingMode" class="btn btn-primary mt-2">保存</button>
                 </div>
+
+                <!-- 新增：图片存储限制设置 -->
+                <div class="mb-4">
+                    <label for="imageStorageLimit" class="form-label">图片存储上限（MB）：</label>
+                    <div class="input-group">
+                        <input type="number" id="imageStorageLimit" class="form-control" min="1" placeholder="输入数字（单位 MB）">
+                        <button id="saveImageStorageLimit" class="btn btn-primary">保存</button>
+                    </div>
+                    <small class="text-muted">超过此大小时系统会从最早的图片开始删除，直到满足限制。</small>
+                </div>
             </div>
         </div>
     </div>
@@ -186,6 +196,83 @@
                     // 不需要刷新页面，因为这个设置不影响当前页面
                 } else {
                     alert('保存授课模式失败！');
+                }
+            });
+
+            // 获取图片存储限制
+            async function getImageStorageLimit() {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+
+                    const response = await fetch('/api/getImageStorageLimit', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json', 'session': session }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        return Number(data.limit);
+                    } else {
+                        console.error(data.message || '获取图片存储限制失败');
+                        return null;
+                    }
+                } catch (err) {
+                    console.error('Error fetching image storage limit:', err);
+                    return null;
+                }
+            }
+
+            // 设置图片存储限制（以字节为单位）
+            async function setImageStorageLimit(limitBytes) {
+                try {
+                    const session = getSessionFromCookie();
+                    if (!session) {
+                        alert('未授权，请重新登录');
+                        window.location.href = '/login.html';
+                        return false;
+                    }
+
+                    const response = await fetch('/api/setImageStorageLimit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'session': session },
+                        body: JSON.stringify({ session: session, limit: String(limitBytes) })
+                    });
+                    const data = await response.json();
+                    return data.success === true;
+                } catch (err) {
+                    console.error('Error setting image storage limit:', err);
+                    return false;
+                }
+            }
+
+            // 绑定图片存储限制控件
+            const imageStorageInput = document.getElementById('imageStorageLimit');
+            const saveImageStorageBtn = document.getElementById('saveImageStorageLimit');
+            // 加载当前限制并显示为 MB
+            (async () => {
+                const limitBytes = await getImageStorageLimit();
+                if (limitBytes !== null && limitBytes !== undefined) {
+                    const mb = Math.round(limitBytes / 1024 / 1024);
+                    imageStorageInput.value = mb;
+                }
+            })();
+
+            saveImageStorageBtn.addEventListener('click', async () => {
+                const mb = parseInt(imageStorageInput.value, 10);
+                if (isNaN(mb) || mb <= 0) {
+                    alert('请输入大于 0 的数字（单位 MB）');
+                    return;
+                }
+                const bytes = mb * 1024 * 1024;
+                const ok = await setImageStorageLimit(bytes);
+                if (ok) {
+                    alert('图片存储限制已保存！');
+                } else {
+                    alert('保存失败！');
                 }
             });
         });

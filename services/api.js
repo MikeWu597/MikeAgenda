@@ -767,6 +767,58 @@ router.post('/setTeachingStatus', async (req, res) => {
     }
 });
 
+// 新增：获取图片存储限制（字节）
+router.get('/getImageStorageLimit', async (req, res) => {
+    const session = req.headers['session'];
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        const limit = await sqliteManager.getImageStorageLimit();
+        res.json({ success: true, limit });
+    } catch (err) {
+        console.error('Error fetching image storage limit:', err.message);
+        res.status(500).json({ success: false, message: '获取图片存储限制失败' });
+    }
+});
+
+// 新增：设置图片存储限制（字节）
+router.post('/setImageStorageLimit', async (req, res) => {
+    const session = req.body.session;
+    const { limit } = req.body;
+
+    if (!session) {
+        return res.status(401).json({ success: false, message: '未授权' });
+    }
+
+    const n = parseInt(limit, 10);
+    if (!Number.isFinite(n) || n <= 0) {
+        return res.status(400).json({ success: false, message: '无效的限制值' });
+    }
+
+    try {
+        await sqliteManager.init();
+        const isValid = await sqliteManager.validateSession(session);
+        if (!isValid) {
+            return res.status(401).json({ success: false, message: '会话无效' });
+        }
+
+        await sqliteManager.setImageStorageLimit(n);
+        res.json({ success: true, message: '图片存储限制已更新' });
+    } catch (err) {
+        console.error('Error setting image storage limit:', err.message);
+        res.status(500).json({ success: false, message: '设置图片存储限制失败' });
+    }
+});
+
 // 创建循环 API
 router.post('/createCycle', async (req, res) => {
     try {
