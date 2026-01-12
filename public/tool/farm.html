@@ -136,7 +136,7 @@
             refreshCaptureTime();
         });
 
-        // 时间轴逻辑
+        // 时间轴逻辑（含缓存与请求去重）
         const timeSlider = document.getElementById('timeSlider');
         const selectedTimeEl = document.getElementById('selectedTime');
         const totalSizeEl = document.getElementById('totalSize');
@@ -150,6 +150,43 @@
             return `${v.toFixed(2)} ${units[i]}`;
         }
 
+        // 缓存：name -> { url: objectURL, size, mtime }
+        const imageCache = new Map();
+        // 正在请求中的 promise：name -> promise
+        const pendingFetch = new Map();
+
+        // 清理 cache 中不再存在于服务器列表的项
+        function pruneCache(currentNames) {
+            for (const key of Array.from(imageCache.keys())) {
+                if (!currentNames.has(key)) {
+                    const entry = imageCache.get(key);
+                    try { URL.revokeObjectURL(entry.url); } catch (e) {}
+                    imageCache.delete(key);
+                }
+            }
+        }
+
+        async function fetchImageBlob(name) {
+            // 去重：如果已有正在进行的请求，返回同一 promise
+            if (pendingFetch.has(name)) return pendingFetch.get(name);
+
+            const p = (async () => {
+                const res = await fetch(`/farm/images/${encodeURIComponent(name)}`, { cache: 'no-store' });
+                if (!res.ok) throw new Error('fetch image failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                return { url };
+            })();
+
+            pendingFetch.set(name, p);
+            try {
+                const result = await p;
+                return result;
+            } finally {
+                pendingFetch.delete(name);
+            }
+        }
+
         async function fetchImages() {
             try {
                 const res = await fetch('/farm/images', { cache: 'no-store' });
@@ -161,13 +198,31 @@
                 timeSlider.max = Math.max(0, len - 1);
                 timeSlider.value = Math.max(0, len - 1);
                 totalSizeEl.textContent = humanSize(data.total || 0);
+
+                // prune cache
+                const namesSet = new Set(imagesList.map(i => i.name));
+                pruneCache(namesSet);
+
+                // Preload the newest few images to improve UX (最新的 3 张)
+                const preloadCount = Math.min(3, imagesList.length);
+                for (let i = imagesList.length - preloadCount; i < imagesList.length; i++) {
+                    if (i < 0) continue;
+                    const it = imagesList[i];
+                    if (!imageCache.has(it.name) && !pendingFetch.has(it.name)) {
+                        // start preload but don't await
+                        fetchImageBlob(it.name).then(({ url }) => {
+                            imageCache.set(it.name, { url, size: it.size, mtime: it.mtime });
+                        }).catch(() => {});
+                    }
+                }
+
                 updateImageByIndex(timeSlider.value);
             } catch (e) {
                 // ignore
             }
         }
 
-        function updateImageByIndex(idx) {
+        async function updateImageByIndex(idx) {
             const i = Number(idx);
             if (!imagesList || imagesList.length === 0) {
                 selectedTimeEl.textContent = '当前：最新';
@@ -177,7 +232,22 @@
             const item = imagesList[i];
             if (!item) return;
             selectedTimeEl.textContent = `当前：${new Date(item.mtime).toLocaleString()}`;
-            img.src = `/farm/images/${item.name}?t=${Date.now()}`;
+
+            // 若已缓存，直接使用 object URL
+            if (imageCache.has(item.name)) {
+                const entry = imageCache.get(item.name);
+                img.src = entry.url;
+                return;
+            }
+
+            try {
+                const { url } = await fetchImageBlob(item.name);
+                imageCache.set(item.name, { url, size: item.size, mtime: item.mtime });
+                img.src = url;
+            } catch (e) {
+                // 如果获取失败，回退到 latest（不带缓存）
+                img.src = `/farm/latest.png?t=${Date.now()}`;
+            }
         }
 
         timeSlider.addEventListener('input', (e) => {
