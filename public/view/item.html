@@ -30,6 +30,13 @@
             align-items: center;
             justify-content: space-between;
         }
+        .page-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
         .header-left {
             display: flex;
             align-items: center;
@@ -70,6 +77,12 @@
             color: #303133;
             flex: 1;
         }
+        .item-title-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
         .item-description {
             font-size: 14px;
             color: #606266;
@@ -89,6 +102,34 @@
             align-items: center;
             gap: 4px;
         }
+
+        @media (max-width: 600px) {
+            #app {
+                padding: 12px;
+            }
+            .page-header {
+                padding: 14px;
+                flex-wrap: wrap;
+                gap: 12px;
+                justify-content: flex-start;
+            }
+            .page-title {
+                font-size: 18px;
+            }
+            .item-card {
+                padding: 14px;
+            }
+            .item-title {
+                font-size: 16px;
+            }
+            .item-title-text {
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                overflow-wrap: anywhere;
+                word-break: break-word;
+            }
+        }
     </style>
 </head>
 <body>
@@ -101,7 +142,7 @@
                     </el-button>
                     <h1 class="page-title">所有事项</h1>
                 </div>
-                <div>
+                <div class="page-header-right">
                     <el-button type="primary" @click="goToPage('/create/item.html')" style="margin-right: 8px;">
                         <i class="bi bi-plus-lg"></i> 创建事项
                     </el-button>
@@ -167,7 +208,7 @@
                                     {{ cat.name }}
                                 </el-tag>
                             </span>
-                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            <span class="item-title-text">
                                 {{ item.title }}
                             </span>
                         </div>
