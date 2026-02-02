@@ -19,6 +19,49 @@
         #app {
             min-height: 100vh;
         }
+
+        /* 避免 Vue 未挂载前闪现 {{ }} */
+        #app[v-cloak] {
+            display: none;
+        }
+        #app-loading {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: #f5f7fa;
+            z-index: 3000;
+        }
+        #app[v-cloak] ~ #app-loading {
+            display: flex;
+        }
+        #app-loading .loading-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 20px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        #app-loading .loading-spinner {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 3px solid rgba(64, 158, 255, 0.25);
+            border-top-color: #409eff;
+            animation: appSpin 0.9s linear infinite;
+        }
+        #app-loading .loading-text {
+            font-size: 14px;
+            color: #606266;
+        }
+        @keyframes appSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
         /* 顶部导航栏 */
         .top-header {
             position: fixed;
@@ -233,7 +276,7 @@
     </style>
 </head>
 <body>
-    <div id="app">
+    <div id="app" v-cloak>
         <!-- 顶部导航栏 -->
         <div class="top-header">
             <div class="header-title"></div>
@@ -428,6 +471,13 @@
             </el-dropdown>
         </div>
 
+    </div>
+
+    <div id="app-loading" role="status" aria-label="加载中">
+        <div class="loading-box">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">加载中...</div>
+        </div>
     </div>
 
     <script src="/vendor/vue/vue.global.prod.js"></script>

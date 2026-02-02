@@ -9,7 +9,7 @@
         body {
             margin: 0;
             padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #fff;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -23,10 +23,13 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
+            padding: 24px 16px;
+            box-sizing: border-box;
         }
         .login-card {
-            width: 420px;
-            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            padding: clamp(20px, 5vw, 40px);
             background: white;
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -103,6 +106,7 @@
     <script>
         const { createApp, ref, reactive, onMounted } = Vue;
         const { ElMessage } = ElementPlus;
+        const DASH_URL = '/dash.html';
 
         createApp({
             setup() {
@@ -123,32 +127,44 @@
                 };
 
                 // 检查会话
-                const checkSession = async () => {
+                const getSessionFromCookie = () => {
                     const cookies = document.cookie.split(';');
-                    let session = null;
-                    
-                    for (let cookie of cookies) {
+                    for (const cookie of cookies) {
                         const [name, value] = cookie.trim().split('=');
-                        if (name === 'session') {
-                            session = value;
-                            break;
-                        }
+                        if (name === 'session') return decodeURIComponent(value || '');
                     }
-                    
-                    if (session) {
-                        try {
-                            const response = await fetch('/api/getItems', {
-                                method: 'GET',
-                                headers: { 'session': session }
-                            });
-                            
-                            const data = await response.json();
-                            if (data.success) {
-                                window.location.href = '/dash.html';
-                            }
-                        } catch (error) {
-                            console.error('Session validation failed:', error);
+                    return null;
+                };
+
+                const clearSessionCookie = () => {
+                    document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                };
+
+                const redirectToDash = () => {
+                    window.location.replace(DASH_URL);
+                };
+
+                const checkSession = async () => {
+                    const session = getSessionFromCookie();
+                    if (!session) return;
+
+                    try {
+                        const response = await fetch('/api/getItems', {
+                            method: 'GET',
+                            headers: { session }
+                        });
+
+                        if (response.status === 401) {
+                            clearSessionCookie();
+                            return;
                         }
+
+                        const data = await response.json();
+                        if (data && data.success) {
+                            redirectToDash();
+                        }
+                    } catch (error) {
+                        console.error('Session validation failed:', error);
                     }
                 };
 
@@ -169,10 +185,10 @@
 
                             const data = await response.json();
                             if (data.success) {
-                                document.cookie = `session=${data.session}; path=/`;
+                                document.cookie = `session=${encodeURIComponent(data.session)}; path=/; SameSite=Lax`;
                                 ElMessage.success('登录成功');
                                 setTimeout(() => {
-                                    window.location.href = '/dash.html';
+                                    redirectToDash();
                                 }, 500);
                             } else {
                                 const errorMessage = data.message || '无效的凭据';
