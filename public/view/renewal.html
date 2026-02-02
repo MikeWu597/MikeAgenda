@@ -4,308 +4,315 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>续费管理</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .renewal-card {
-            margin-bottom: 1rem;
-            cursor: pointer;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .renewal-details {
-            display: none;
-        }
-        .renewal-config {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 0.5rem;
-        }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .muted { color: #909399; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <h2 class="mb-4">
-                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    续费管理
-                </h2>
-                <div id="renewalsContainer"></div>
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
+                    <i class="bi bi-arrow-left"></i>
+                </el-button>
+                <div class="page-title">续费管理</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button type="primary" @click="goCreate">
+                        <i class="bi bi-plus-lg"></i>
+                        新建续费
+                    </el-button>
+                    <el-button plain @click="load" :loading="loading">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
+                </div>
             </div>
+
+            <el-card shadow="hover" style="border-radius: 12px;">
+                <el-table v-loading="loading" :data="renewals" style="width: 100%" empty-text="暂无续费项目">
+                    <el-table-column prop="name" label="名称" min-width="160" />
+                    <el-table-column label="描述" min-width="240">
+                        <template #default="{ row }">
+                            <span class="muted">{{ row.description || '无描述' }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="expiry_date" label="到期日期" width="140">
+                        <template #default="{ row }">
+                            {{ (row.expiry_date || '').split('T')[0] || '--' }}
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="reminder_days" label="提醒(天)" width="110" />
+                    <el-table-column label="操作" width="180" fixed="right">
+                        <template #default="{ row }">
+                            <el-button size="small" @click.stop="openEdit(row)">编辑</el-button>
+                            <el-button size="small" type="danger" @click.stop="remove(row)">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-card>
+
+            <el-dialog v-model="editVisible" title="编辑续费项目" width="520px">
+                <el-form ref="formRef" :model="edit" :rules="rules" label-width="90px">
+                    <el-form-item label="名称" prop="name">
+                        <el-input v-model="edit.name" clearable />
+                    </el-form-item>
+                    <el-form-item label="描述">
+                        <el-input v-model="edit.description" type="textarea" :rows="3" />
+                    </el-form-item>
+                    <el-form-item label="分类" prop="categoryId">
+                        <el-select v-model="edit.categoryId" style="width: 100%;" filterable>
+                            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="String(c.id)" />
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="到期日期" prop="expiryDate">
+                        <el-date-picker
+                            v-model="edit.expiryDate"
+                            type="date"
+                            style="width: 100%;"
+                            format="YYYY-MM-DD"
+                            value-format="YYYY-MM-DD"
+                        />
+                    </el-form-item>
+                    <el-form-item label="提醒天数" prop="reminderDays">
+                        <el-input-number v-model="edit.reminderDays" :min="0" :max="3650" />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <el-button @click="editVisible=false">取消</el-button>
+                    <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+                </template>
+            </el-dialog>
         </div>
     </div>
 
-    <!-- 添加编辑续费项目的模态框 -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">编辑续费项目</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editForm">
-                        <input type="hidden" id="editRenewalId">
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">名称</label>
-                            <input type="text" class="form-control" id="editName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDescription" class="form-label">描述</label>
-                            <textarea class="form-control" id="editDescription"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editCategory" class="form-label">分类</label>
-                            <select class="form-select" id="editCategory" required>
-                                <!-- 分类选项动态加载 -->
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editExpiryDate" class="form-label">到期日期</label>
-                            <input type="date" class="form-control" id="editExpiryDate" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editReminderDays" class="form-label">提醒天数</label>
-                            <input type="number" class="form-control" id="editReminderDays" min="0" required>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveEdit">保存</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        // 从 cookie 中获取 session
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
+        const { createApp, ref, reactive, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
 
-        // 获取所有续费项目
-        async function fetchRenewals() {
-            try {
-                const session = document.cookie.split('; ').find(c => c.trim().startsWith('session='));
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const saving = ref(false);
+                const renewals = ref([]);
+                const categories = ref([]);
 
-                const sessionValue = session.split('=')[1];
-
-                const response = await fetch('/api/getAllRenewals', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ session: sessionValue })
+                const editVisible = ref(false);
+                const formRef = ref(null);
+                const edit = reactive({
+                    id: null,
+                    name: '',
+                    description: '',
+                    categoryId: '',
+                    expiryDate: '',
+                    reminderDays: 0
                 });
-                const data = await response.json();
-                if (data.success) {
-                    renderRenewals(data.data);
-                } else {
-                    alert(data.message || '加载续费项目失败');
-                }
-            } catch (error) {
-                console.error('Error fetching renewals:', error);
-                alert('加载续费项目失败，请重试');
-            }
-        }
 
-        // 渲染续费项目卡片
-        function renderRenewals(renewals) {
-            const container = document.getElementById('renewalsContainer');
-            container.innerHTML = ''; // 清空容器
+                const rules = {
+                    name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+                    categoryId: [{ required: true, message: '请选择分类', trigger: 'change' }],
+                    expiryDate: [{ required: true, message: '请选择到期日期', trigger: 'change' }],
+                    reminderDays: [{ required: true, message: '请输入提醒天数', trigger: 'change' }]
+                };
 
-            renewals.forEach(renewal => {
-                const card = document.createElement('div');
-                card.className = 'card renewal-card';
-
-                card.innerHTML = `
-                    <div class="card-header">
-                        <h5>${renewal.name}</h5>
-                        <small class="text-muted">${renewal.description || '无描述'}</small>
-                    </div>
-                    <div class="card-body renewal-details" style="display: none;">
-                        <p><strong>到期日期:</strong> ${renewal.expiry_date}</p>
-                        <p><strong>提醒天数:</strong> ${renewal.reminder_days} 天</p>
-                        <div class="d-flex gap-2 mt-3">
-                            <button class="btn btn-outline-primary edit-btn" data-id="${renewal.id}">编辑</button>
-                            <button class="btn btn-danger delete-btn" data-id="${renewal.id}">删除</button>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            // 使用事件委托机制绑定点击事件
-            container.addEventListener('click', async (event) => {
-                const target = event.target.closest('.renewal-card');
-                if (target) {
-                    const details = target.querySelector('.renewal-details');
-                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
-                }
-
-                // 绑定编辑按钮点击事件
-                if (event.target.classList.contains('edit-btn')) {
-                    const renewalId = event.target.dataset.id;
-                    const renewal = renewals.find(r => r.id === parseInt(renewalId));
-                    if (renewal) {
-                        document.getElementById('editRenewalId').value = renewal.id;
-                        document.getElementById('editName').value = renewal.name;
-                        document.getElementById('editDescription').value = renewal.description || '';
-                        document.getElementById('editExpiryDate').value = renewal.expiry_date.split('T')[0];
-                        document.getElementById('editReminderDays').value = renewal.reminder_days;
-
-                        // 加载分类选项
-                        loadCategories(renewal.category_id);
-
-                        const modal = new bootstrap.Modal(document.getElementById('editModal'));
-                        modal.show();
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
                     }
-                    event.stopPropagation();
-                }
+                    return null;
+                };
 
-                // 绑定删除按钮点击事件
-                if (event.target.classList.contains('delete-btn')) {
-                    const renewalId = event.target.dataset.id;
+                const ensureAuth = () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+                    return session;
+                };
 
-                    if (confirm('确定要删除该续费项目吗？此操作不可撤销！')) {
+                const loadCategories = async () => {
+                    const session = ensureAuth();
+                    if (!session) return;
+                    try {
+                        const res = await fetch('/api/getAllRenewalCategories', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载分类失败');
+                        categories.value = Array.isArray(data.data) ? data.data : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载分类失败');
+                    }
+                };
+
+                const load = async () => {
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loading.value = true;
+                    try {
+                        const res = await fetch('/api/getAllRenewals', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载续费项目失败');
+                        renewals.value = Array.isArray(data.data) ? data.data : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载续费项目失败');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const openEdit = async (row) => {
+                    edit.id = row.id;
+                    edit.name = row.name || '';
+                    edit.description = row.description || '';
+                    edit.categoryId = row.category_id != null ? String(row.category_id) : '';
+                    edit.expiryDate = (row.expiry_date || '').split('T')[0] || '';
+                    edit.reminderDays = Number(row.reminder_days || 0);
+                    await loadCategories();
+                    editVisible.value = true;
+                };
+
+                const save = async () => {
+                    if (!formRef.value) return;
+                    await formRef.value.validate(async (valid) => {
+                        if (!valid) return;
+                        const session = ensureAuth();
+                        if (!session) return;
+
+                        saving.value = true;
                         try {
-                            const response = await fetch(`/api/deleteRenewals/${renewalId}`, {
-                                method: 'DELETE',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
+                            const res = await fetch(`/api/updateRenewals/${edit.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
-                                    session: getSessionFromCookie()
+                                    name: edit.name,
+                                    description: edit.description,
+                                    categoryId: edit.categoryId,
+                                    expiryDate: edit.expiryDate,
+                                    reminderDays: String(edit.reminderDays),
+                                    session
                                 })
                             });
-                            const data = await response.json();
-                            if (data.success) {
-                                alert('续费项目已删除');
-                                location.reload();
-                            } else {
-                                alert(data.message || '删除失败');
+                            if (res.status === 401) {
+                                window.location.href = '/login.html';
+                                return;
                             }
-                        } catch (error) {
-                            console.error('Error deleting renewal:', error);
-                            alert('删除失败，请重试');
+                            const data = await res.json();
+                            if (!data.success) throw new Error(data.message || '更新失败');
+                            ElMessage.success('续费项目已更新');
+                            editVisible.value = false;
+                            await load();
+                        } catch (e) {
+                            console.error(e);
+                            ElMessage.error(e?.message || '更新失败');
+                        } finally {
+                            saving.value = false;
                         }
-                    }
-                    event.stopPropagation();
-                }
-            });
-        }
-
-        // 加载续费分类选项
-        async function loadCategories(selectedId = null) {
-            const categorySelect = document.getElementById('editCategory');
-            categorySelect.innerHTML = ''; // 清空现有选项
-
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const response = await fetch('/api/getAllRenewalCategories', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        session: session
-                    })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    data.data.forEach(category => {
-                        const option = document.createElement('option');
-                        option.value = category.id;
-                        option.textContent = category.name;
-                        if (category.id === selectedId) {
-                            option.selected = true;
-                        }
-                        categorySelect.appendChild(option);
                     });
-                } else {
-                    alert(data.message || '加载分类失败');
-                }
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-                alert('加载分类失败，请重试');
-            }
-        }
+                };
 
-        // 保存编辑续费项目
-        document.getElementById('saveEdit').addEventListener('click', async () => {
-            const renewalId = document.getElementById('editRenewalId').value;
-            const name = document.getElementById('editName').value;
-            const description = document.getElementById('editDescription').value;
-            const categoryId = document.getElementById('editCategory').value;
-            const expiryDate = document.getElementById('editExpiryDate').value;
-            const reminderDays = document.getElementById('editReminderDays').value;
+                const remove = async (row) => {
+                    const session = ensureAuth();
+                    if (!session) return;
+                    try {
+                        await ElMessageBox.confirm('确定要删除该续费项目吗？此操作不可撤销！', '确认删除', {
+                            type: 'warning',
+                            confirmButtonText: '删除',
+                            cancelButtonText: '取消'
+                        });
+                    } catch {
+                        return;
+                    }
 
-            // 验证必填字段
-            if (!name || !categoryId || !expiryDate || reminderDays === '') {
-                alert('请填写所有必填字段');
-                return;
-            }
+                    try {
+                        const res = await fetch(`/api/deleteRenewals/${row.id}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '删除失败');
+                        ElMessage.success('续费项目已删除');
+                        await load();
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '删除失败');
+                    }
+                };
 
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
+                const goBack = () => {
+                    window.location.href = '/dash.html';
+                };
 
-                const response = await fetch(`/api/updateRenewals/${renewalId}`, {
-                    method: 'PUT', // 修改为 PUT 方法
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        name,
-                        description,
-                        categoryId,
-                        expiryDate,
-                        reminderDays,
-                        session
-                    })
+                const goCreate = () => {
+                    window.location.href = '/create/renewal.html';
+                };
+
+                onMounted(async () => {
+                    ensureAuth();
+                    await loadCategories();
+                    await load();
                 });
-                const data = await response.json();
-                if (data.success) {
-                    alert('续费项目已更新');
-                    location.reload();
-                } else {
-                    alert(data.message || '更新失败');
-                }
-            } catch (error) {
-                console.error('Error updating renewal:', error);
-                alert('更新失败，请重试');
-            }
-        });
 
-        // 页面加载时获取续费项目
-        document.addEventListener('DOMContentLoaded', () => {
-            fetchRenewals();
-        });
+                return {
+                    loading,
+                    saving,
+                    renewals,
+                    categories,
+                    editVisible,
+                    formRef,
+                    edit,
+                    rules,
+                    load,
+                    openEdit,
+                    save,
+                    remove,
+                    goBack,
+                    goCreate
+                };
+            }
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

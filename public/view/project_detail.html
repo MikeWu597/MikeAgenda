@@ -4,12 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>项目详情</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .record-item {
-            border-left: 3px solid #007bff;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .muted { color: #909399; }
         
         /* 日历样式 */
         .months-container {
@@ -113,525 +125,499 @@
             font-weight: bold;
         }
         
-        /* popover样式调整 */
-        .popover {
-            max-width: 200px;
-            font-size: 0.8rem;
-        }
-        
-        .popover-body {
-            padding: 0.5rem;
-        }
-        
-        .popover-header {
-            padding: 0.5rem;
-            font-size: 0.85rem;
-        }
+        .day-number { font-weight: bold; }
+        .calendar-day:hover { opacity: 0.85; }
+        .calendar-day.empty { cursor: default; }
+        .calendar-day.future-day { cursor: default; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <h2 class="mb-4">
-                    <a href="project.html" class="text-decoration-none text-dark me-2">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    <span id="projectTitle">项目详情</span>
-                </h2>
-                
-                <div class="card mb-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div id="projectColor" class="me-3" style="width: 20px; height: 20px; background-color: #007bff; border-radius: 4px;"></div>
-                            <h5 id="projectName">项目名称</h5>
-                        </div>
-                        <span class="badge bg-secondary" id="projectId">#</span>
-                    </div>
-                    <div class="card-body">
-                        <p id="projectDescription">项目描述</p>
-                        <div class="d-flex justify-content-end gap-2">
-                            <button class="btn btn-danger" id="deleteProject">
-                                删除项目
-                            </button>
-                            <button class="btn btn-primary" id="participateBtn">
-                                参与项目
-                            </button>
-                            <button class="btn btn-secondary" id="editBtn">
-                                编辑项目
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h4>参与记录日历</h4>
-                    <button class="btn btn-sm btn-outline-primary" id="refreshRecords">
-                        <i class="bi bi-arrow-repeat"></i> 刷新
-                    </button>
-                </div>
-                
-                <div id="recordsContainer">
-                    <div class="text-center">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">加载中...</span>
-                        </div>
-                    </div>
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
+                    <i class="bi bi-arrow-left"></i>
+                </el-button>
+                <div class="page-title">{{ project?.name || '项目详情' }}</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button plain @click="loadAll" :loading="loadingProject || loadingRecords">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
                 </div>
             </div>
+
+            <el-card shadow="hover" style="border-radius: 12px; margin-bottom: 16px;" v-loading="loadingProject">
+                <template #header>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px;">
+                        <div style="display:flex; align-items:center; gap: 12px; min-width: 0;">
+                            <div :style="{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: project?.color || '#409eff' }"></div>
+                            <div style="font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ project?.name || '--' }}
+                            </div>
+                        </div>
+                        <el-tag type="info">#{{ project?.id ?? projectId }}</el-tag>
+                    </div>
+                </template>
+
+                <div class="muted" style="margin-bottom: 12px; white-space: pre-wrap;">{{ project?.description || '无描述' }}</div>
+                <div style="display:flex; justify-content:flex-end; gap: 8px; flex-wrap: wrap;">
+                    <el-button type="danger" :loading="deleting" @click="removeProject">删除项目</el-button>
+                    <el-button type="primary" :loading="participating" @click="participate">参与项目</el-button>
+                    <el-button @click="openEdit">编辑项目</el-button>
+                </div>
+            </el-card>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px;">
+                <div style="font-weight: 700;">参与记录日历</div>
+                <el-button size="small" plain @click="loadRecords" :loading="loadingRecords">
+                    <i class="bi bi-arrow-repeat"></i>
+                    刷新
+                </el-button>
+            </div>
+
+            <el-card shadow="hover" style="border-radius: 12px;" v-loading="loadingRecords">
+                <el-empty v-if="!loadingRecords && records.length === 0" description="暂无参与记录" />
+
+                <div v-else class="months-container">
+                    <div v-for="m in months" :key="m.key" class="month-card">
+                        <div class="month-header">{{ m.title }}</div>
+                        <div class="month-grid">
+                            <div v-for="w in weekdays" :key="m.key + '-w-' + w" class="weekday-label">{{ w }}</div>
+
+                            <div v-for="cell in m.cells" :key="cell.key">
+                                <div v-if="cell.type === 'empty'" class="calendar-day empty"></div>
+
+                                <template v-else>
+                                    <template v-if="cell.isFuture">
+                                        <div class="calendar-day future-day">
+                                            <div class="day-number">{{ cell.day }}</div>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <el-popover trigger="hover" placement="top" width="220">
+                                            <template #reference>
+                                                <div :class="cell.className">
+                                                    <div class="day-number">{{ cell.day }}</div>
+                                                </div>
+                                            </template>
+                                            <div style="font-size: 12px;">
+                                                <div style="font-weight: 700; margin-bottom: 6px;">{{ cell.dateStr }}</div>
+                                                <div v-if="cell.records && cell.records.length">
+                                                    <div style="margin-bottom: 6px;">
+                                                        <strong>{{ cell.records.length }}</strong> 条参与记录:
+                                                    </div>
+                                                    <div v-for="(r, idx) in cell.records" :key="cell.dateStr + '-' + idx" class="muted">
+                                                        {{ idx + 1 }}. {{ formatTime(r.timestamp) }}
+                                                    </div>
+                                                </div>
+                                                <div v-else class="muted">无参与记录</div>
+                                            </div>
+                                        </el-popover>
+                                    </template>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </el-card>
+
+            <el-dialog v-model="editVisible" title="编辑项目" width="520px">
+                <el-form ref="formRef" :model="edit" :rules="rules" label-width="90px">
+                    <el-form-item label="项目名称" prop="name">
+                        <el-input v-model="edit.name" clearable />
+                    </el-form-item>
+                    <el-form-item label="项目描述">
+                        <el-input v-model="edit.description" type="textarea" :rows="4" />
+                    </el-form-item>
+                    <el-form-item label="项目颜色" prop="color">
+                        <div style="display:flex; align-items:center; gap: 12px;">
+                            <el-color-picker v-model="edit.color" />
+                            <el-input v-model="edit.color" style="max-width: 180px;" placeholder="#RRGGBB" />
+                        </div>
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <el-button @click="editVisible=false">取消</el-button>
+                    <el-button type="primary" :loading="saving" @click="saveEdit">保存</el-button>
+                </template>
+            </el-dialog>
         </div>
     </div>
 
-    <!-- 编辑项目的模态框 -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">编辑项目</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editForm">
-                        <input type="hidden" id="editProjectId">
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">项目名称</label>
-                            <input type="text" class="form-control" id="editName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editDescription" class="form-label">项目描述</label>
-                            <textarea class="form-control" id="editDescription" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editColor" class="form-label">项目颜色</label>
-                            <input type="color" class="form-control" id="editColor">
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-danger" id="deleteProject">删除</button>
-                    <button type="button" class="btn btn-primary" id="saveEdit">保存</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        // 启用Bootstrap popover
-        document.addEventListener('DOMContentLoaded', function() {
-            // 不在这里初始化popover，而是在渲染记录时初始化
-        });
-        
-        // 从 URL 获取项目 ID
-        const urlParams = new URLSearchParams(window.location.search);
-        const projectId = urlParams.get('id');
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
 
-        // 从 cookie 中获取 session
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
+        createApp({
+            setup() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const projectId = urlParams.get('id');
 
-        // 获取项目详情
-        async function fetchProject() {
-            if (!projectId) {
-                alert('无效的项目 ID');
-                window.location.href = 'project.html';
-                return;
-            }
+                const loadingProject = ref(true);
+                const loadingRecords = ref(true);
+                const participating = ref(false);
+                const deleting = ref(false);
+                const saving = ref(false);
 
-            try {
-                const response = await fetch(`/api/getProject/${projectId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': getSessionFromCookie()
-                    }
+                const project = ref(null);
+                const records = ref([]);
+
+                const editVisible = ref(false);
+                const formRef = ref(null);
+                const edit = reactive({
+                    name: '',
+                    description: '',
+                    color: '#409eff'
                 });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                if (response.status === 404) {
-                    alert('项目未找到');
+
+                const rules = {
+                    name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+                    color: [{ required: true, message: '请选择项目颜色', trigger: 'change' }]
+                };
+
+                const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
+                    }
+                    return null;
+                };
+
+                const ensureAuth = () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+                    return session;
+                };
+
+                const ensureProjectId = () => {
+                    if (!projectId) {
+                        ElMessage.error('无效的项目 ID');
+                        window.location.href = 'project.html';
+                        return false;
+                    }
+                    return true;
+                };
+
+                const goBack = () => {
                     window.location.href = 'project.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    renderProject(data.project);
-                } else {
-                    alert(data.message || '加载项目失败');
-                }
-            } catch (error) {
-                console.error('Error fetching project:', error);
-                alert('加载项目失败，请重试');
-            }
-        }
+                };
 
-        // 渲染项目详情
-        function renderProject(project) {
-            document.getElementById('projectTitle').textContent = project.name;
-            document.getElementById('projectName').textContent = project.name;
-            document.getElementById('projectId').textContent = '#' + project.id;
-            document.getElementById('projectDescription').textContent = project.description || '无描述';
-            document.getElementById('projectColor').style.backgroundColor = project.color || '#007bff';
-            
-            // 设置编辑模态框的初始值
-            document.getElementById('editProjectId').value = project.id;
-            document.getElementById('editName').value = project.name;
-            document.getElementById('editDescription').value = project.description || '';
-            document.getElementById('editColor').value = project.color || '#007bff';
-        }
+                const formatTime = (timestamp) => {
+                    const d = new Date(timestamp);
+                    if (Number.isNaN(d.getTime())) return String(timestamp || '--');
+                    return d.toLocaleTimeString('zh-CN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                };
 
-        // 获取项目参与记录
-        async function fetchProjectRecords() {
-            try {
-                const response = await fetch(`/api/getProjectRecords/${projectId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': getSessionFromCookie()
+                const buildRecordsByDate = (rows) => {
+                    const map = {};
+                    let firstRecordDate = null;
+
+                    for (const r of rows) {
+                        const date = String(r.timestamp || '').split(' ')[0];
+                        if (!date) continue;
+                        if (!map[date]) map[date] = [];
+                        map[date].push(r);
+                        if (!firstRecordDate || date < firstRecordDate) firstRecordDate = date;
                     }
-                });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    renderRecords(data.records);
-                } else {
-                    alert(data.message || '加载参与记录失败');
-                }
-            } catch (error) {
-                console.error('Error fetching project records:', error);
-                alert('加载参与记录失败，请重试');
-            }
-        }
 
-        // 渲染参与记录
-        function renderRecords(records) {
-            const container = document.getElementById('recordsContainer');
-            
-            if (records.length === 0) {
-                container.innerHTML = '<p class="text-muted">暂无参与记录</p>';
-                return;
-            }
-            
-            // 按日期分组记录 (只使用日期部分，不包括时间)
-            const recordsByDate = {};
-            let firstRecordDate = null;
-            let lastRecordDate = null;
-            
-            records.forEach(record => {
-                // 从完整时间戳中提取日期部分 YYYY-MM-DD
-                const date = record.timestamp.split(' ')[0];
-                if (!recordsByDate[date]) {
-                    recordsByDate[date] = [];
-                }
-                recordsByDate[date].push(record);
-                
-                // 更新最早和最晚记录日期
-                if (!firstRecordDate || date < firstRecordDate) {
-                    firstRecordDate = date;
-                }
-                if (!lastRecordDate || date > lastRecordDate) {
-                    lastRecordDate = date;
-                }
-            });
-            
-            // 确定显示月份范围（从首次记录月份开始，显示到当前月份，最多3个月）
-            const today = new Date();
-            let startDate;
-            
-            if (firstRecordDate) {
-                const firstDate = new Date(firstRecordDate);
-                const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-                if (firstDate < threeMonthsAgo) {
-                    startDate = threeMonthsAgo;
-                } else {
-                    startDate = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
-                }
-            } else {
-                // 如果没有记录，从当前月份开始
-                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            }
-            
-            // 创建月份日历
-            const monthsContainer = document.createElement('div');
-            monthsContainer.className = 'months-container';
-            
-            // 生成从起始月份到当前月份的日历（最多3个月）
-            let currentDate = new Date(startDate);
-            let monthCount = 0;
-            
-            while (currentDate <= today && monthCount < 3) {
-                const monthCard = createMonthCard(currentDate, recordsByDate);
-                monthsContainer.appendChild(monthCard);
-                
-                // 移动到下一个月
-                currentDate.setMonth(currentDate.getMonth() + 1);
-                monthCount++;
-            }
-            
-            container.innerHTML = '';
-            container.appendChild(monthsContainer);
-            
-            // 销毁现有的popover实例
-            if (window.projectPopovers) {
-                window.projectPopovers.forEach(popover => popover.dispose());
-            }
-            
-            // 初始化popover
-            const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
-            window.projectPopovers = popoverTriggerList.map(function (popoverTriggerEl) {
-                return new bootstrap.Popover(popoverTriggerEl, {
-                    html: true,
-                    trigger: 'hover',
-                    placement: 'top',
-                    container: 'body'
-                });
-            });
-        }
-        
-        // 创建月份卡片
-        function createMonthCard(date, recordsByDate) {
-            const monthCard = document.createElement('div');
-            monthCard.className = 'month-card';
-            
-            // 月份标题
-            const monthHeader = document.createElement('div');
-            monthHeader.className = 'month-header';
-            monthHeader.textContent = `${date.getFullYear()}年${date.getMonth() + 1}月`;
-            monthCard.appendChild(monthHeader);
-            
-            // 创建日历网格
-            const monthGrid = document.createElement('div');
-            monthGrid.className = 'month-grid';
-            
-            // 星期标题
-            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-            weekdays.forEach(day => {
-                const weekdayLabel = document.createElement('div');
-                weekdayLabel.className = 'weekday-label';
-                weekdayLabel.textContent = day;
-                monthGrid.appendChild(weekdayLabel);
-            });
-            
-            // 获取该月第一天和最后一天
-            const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-            const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-            
-            // 填充月初的空白天
-            const firstDayOfWeek = firstDay.getDay();
-            for (let i = 0; i < firstDayOfWeek; i++) {
-                const emptyDay = document.createElement('div');
-                emptyDay.className = 'calendar-day empty';
-                monthGrid.appendChild(emptyDay);
-            }
-            
-            // 填充该月的日期
-            const today = new Date();
-            for (let day = 1; day <= lastDay.getDate(); day++) {
-                const currentDate = new Date(date.getFullYear(), date.getMonth(), day);
-                // 使用更准确的方法生成日期字符串 (YYYY-MM-DD)
-                const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const dayElement = document.createElement('div');
-                
-                // 判断是否是未来日期
-                if (currentDate > today) {
-                    dayElement.className = 'calendar-day future-day';
-                } else {
-                    // 检查是否有记录
-                    if (recordsByDate[dateStr]) {
-                        const recordCount = recordsByDate[dateStr].length;
-                        // 根据参与次数确定颜色深浅 (最多7个级别)
-                        const level = Math.min(recordCount, 7);
-                        dayElement.className = `calendar-day activity-level-${level}`;
-                        dayElement.setAttribute('data-bs-toggle', 'popover');
-                        dayElement.setAttribute('data-bs-placement', 'top');
-                        dayElement.setAttribute('data-bs-trigger', 'hover');
-                        dayElement.setAttribute('data-bs-html', 'true');
-                        dayElement.setAttribute('data-bs-title', dateStr);
-                        
-                        // 构建popover内容
-                        let content = `<strong>${recordCount} 条参与记录:</strong><br>`;
-                        recordsByDate[dateStr].forEach((record, index) => {
-                            const time = new Date(record.timestamp).toLocaleTimeString('zh-CN', { 
-                                hour: '2-digit', 
-                                minute: '2-digit',
-                                second: '2-digit'
-                            });
-                            content += `<small>${index + 1}. ${time}</small><br>`;
-                        });
-                        
-                        dayElement.setAttribute('data-bs-content', content);
+                    return { map, firstRecordDate };
+                };
+
+                const months = computed(() => {
+                    const { map, firstRecordDate } = buildRecordsByDate(records.value);
+                    const today = new Date();
+
+                    let startDate;
+                    if (firstRecordDate) {
+                        const firstDate = new Date(firstRecordDate);
+                        const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+                        startDate = firstDate < threeMonthsAgo
+                            ? threeMonthsAgo
+                            : new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
                     } else {
-                        dayElement.className = 'calendar-day no-activity';
-                        dayElement.setAttribute('data-bs-toggle', 'popover');
-                        dayElement.setAttribute('data-bs-placement', 'top');
-                        dayElement.setAttribute('data-bs-trigger', 'hover');
-                        dayElement.setAttribute('data-bs-title', dateStr);
-                        dayElement.setAttribute('data-bs-content', '无参与记录');
+                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
                     }
-                }
-                
-                // 添加日期数字
-                const dayNumber = document.createElement('div');
-                dayNumber.className = 'day-number';
-                dayNumber.textContent = day;
-                dayElement.appendChild(dayNumber);
-                
-                // 不再添加记录数量，而是通过颜色深浅表示
-                
-                monthGrid.appendChild(dayElement);
-            }
-            
-            monthCard.appendChild(monthGrid);
-            return monthCard;
-        }
 
-        // 参与项目
-        async function participateInProject() {
-            try {
-                const session = getSessionFromCookie();
-                const response = await fetch('/api/participateInProject', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ projectId, session })
+                    const result = [];
+                    const cursor = new Date(startDate);
+                    let monthCount = 0;
+                    while (cursor <= today && monthCount < 3) {
+                        const year = cursor.getFullYear();
+                        const monthIndex = cursor.getMonth();
+                        const key = `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+                        const title = `${year}年${monthIndex + 1}月`;
+
+                        const firstDay = new Date(year, monthIndex, 1);
+                        const lastDay = new Date(year, monthIndex + 1, 0);
+
+                        const cells = [];
+                        const firstDayOfWeek = firstDay.getDay();
+                        for (let i = 0; i < firstDayOfWeek; i++) {
+                            cells.push({ type: 'empty', key: `${key}-e-${i}` });
+                        }
+
+                        for (let day = 1; day <= lastDay.getDate(); day++) {
+                            const currentDate = new Date(year, monthIndex, day);
+                            const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                            const isFuture = currentDate > today;
+                            const dayRecords = map[dateStr] || [];
+                            const recordCount = dayRecords.length;
+
+                            let className = 'calendar-day no-activity';
+                            if (!isFuture && recordCount > 0) {
+                                const level = Math.min(recordCount, 7);
+                                className = `calendar-day activity-level-${level}`;
+                            }
+                            if (isFuture) className = 'calendar-day future-day';
+
+                            cells.push({
+                                type: 'day',
+                                key: `${key}-d-${day}`,
+                                year,
+                                monthIndex,
+                                day,
+                                dateStr,
+                                isFuture,
+                                className,
+                                records: dayRecords
+                            });
+                        }
+
+                        result.push({ key, title, cells });
+                        cursor.setMonth(cursor.getMonth() + 1);
+                        monthCount++;
+                    }
+
+                    return result;
                 });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    alert('已记录参与项目');
-                    fetchProjectRecords(); // 刷新记录
-                } else {
-                    alert(data.message || '参与项目失败');
-                }
-            } catch (error) {
-                console.error('Error participating in project:', error);
-                alert('参与项目失败，请重试');
-            }
-        }
 
-        // 删除项目
-        async function deleteProject() {
-            if (!confirm('确定要删除这个项目吗？')) {
-                return;
-            }
-            
-            try {
-                const session = getSessionFromCookie();
-                const response = await fetch(`/api/deleteProject/${projectId}`, {
-                    method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session })
+                const loadProject = async () => {
+                    if (!ensureProjectId()) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loadingProject.value = true;
+                    try {
+                        const res = await fetch(`/api/getProject/${projectId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        if (res.status === 404) {
+                            ElMessage.error('项目未找到');
+                            window.location.href = 'project.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载项目失败');
+                        project.value = data.project;
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载项目失败');
+                    } finally {
+                        loadingProject.value = false;
+                    }
+                };
+
+                const loadRecords = async () => {
+                    if (!ensureProjectId()) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loadingRecords.value = true;
+                    try {
+                        const res = await fetch(`/api/getProjectRecords/${projectId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载参与记录失败');
+                        records.value = Array.isArray(data.records) ? data.records : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载参与记录失败');
+                        records.value = [];
+                    } finally {
+                        loadingRecords.value = false;
+                    }
+                };
+
+                const loadAll = async () => {
+                    await Promise.all([loadProject(), loadRecords()]);
+                };
+
+                const participate = async () => {
+                    if (!ensureProjectId()) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    participating.value = true;
+                    try {
+                        const res = await fetch('/api/participateInProject', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ projectId, session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '参与项目失败');
+                        ElMessage.success('已记录参与项目');
+                        await loadRecords();
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '参与项目失败');
+                    } finally {
+                        participating.value = false;
+                    }
+                };
+
+                const removeProject = async () => {
+                    if (!ensureProjectId()) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    try {
+                        await ElMessageBox.confirm('确定要删除这个项目吗？', '确认删除', {
+                            type: 'warning',
+                            confirmButtonText: '删除',
+                            cancelButtonText: '取消'
+                        });
+                    } catch {
+                        return;
+                    }
+
+                    deleting.value = true;
+                    try {
+                        const res = await fetch(`/api/deleteProject/${projectId}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '删除项目失败');
+                        ElMessage.success('项目已删除');
+                        window.location.href = 'project.html';
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '删除项目失败');
+                    } finally {
+                        deleting.value = false;
+                    }
+                };
+
+                const openEdit = () => {
+                    const p = project.value;
+                    if (!p) return;
+                    edit.name = p.name || '';
+                    edit.description = p.description || '';
+                    edit.color = p.color || '#409eff';
+                    editVisible.value = true;
+                };
+
+                const saveEdit = async () => {
+                    if (!formRef.value) return;
+                    await formRef.value.validate(async (valid) => {
+                        if (!valid) return;
+                        if (!ensureProjectId()) return;
+                        const session = ensureAuth();
+                        if (!session) return;
+
+                        saving.value = true;
+                        try {
+                            const res = await fetch(`/api/updateProject/${projectId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    name: edit.name,
+                                    description: edit.description,
+                                    color: edit.color,
+                                    session
+                                })
+                            });
+                            if (res.status === 401) {
+                                window.location.href = '/login.html';
+                                return;
+                            }
+                            const data = await res.json();
+                            if (!data.success) throw new Error(data.message || '更新项目失败');
+                            ElMessage.success('项目已更新');
+                            editVisible.value = false;
+                            await loadProject();
+                        } catch (e) {
+                            console.error(e);
+                            ElMessage.error(e?.message || '更新项目失败');
+                        } finally {
+                            saving.value = false;
+                        }
+                    });
+                };
+
+                onMounted(async () => {
+                    ensureAuth();
+                    if (!ensureProjectId()) return;
+                    await loadAll();
                 });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    alert('项目已删除');
-                    window.location.href = 'project.html';
-                } else {
-                    alert(data.message || '删除项目失败');
-                }
-            } catch (error) {
-                console.error('Error deleting project:', error);
-                alert('删除项目失败，请重试');
-            }
-        }
 
-        // 保存编辑
-        async function saveEdit() {
-            const name = document.getElementById('editName').value;
-            const description = document.getElementById('editDescription').value;
-            const color = document.getElementById('editColor').value;
-            
-            try {
-                const session = getSessionFromCookie();
-                const response = await fetch(`/api/updateProject/${projectId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, description, color, session })
-                });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    alert('项目已更新');
-                    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-                    fetchProject(); // 重新加载项目信息
-                } else {
-                    alert(data.message || '更新项目失败');
-                }
-            } catch (error) {
-                console.error('Error updating project:', error);
-                alert('更新项目失败，请重试');
+                return {
+                    projectId,
+                    weekdays,
+                    loadingProject,
+                    loadingRecords,
+                    participating,
+                    deleting,
+                    saving,
+                    project,
+                    records,
+                    months,
+                    editVisible,
+                    formRef,
+                    edit,
+                    rules,
+                    goBack,
+                    formatTime,
+                    loadProject,
+                    loadRecords,
+                    loadAll,
+                    participate,
+                    removeProject,
+                    openEdit,
+                    saveEdit
+                };
             }
-        }
-
-        // 页面加载完成后获取项目信息和记录
-        document.addEventListener('DOMContentLoaded', () => {
-            const session = getSessionFromCookie();
-            if (!session) {
-                alert('未授权，请重新登录');
-                window.location.href = '/login.html';
-                return;
-            }
-            
-            if (!projectId) {
-                alert('无效的项目 ID');
-                window.location.href = 'project.html';
-                return;
-            }
-            
-            fetchProject();
-            fetchProjectRecords();
-        });
-
-        // 绑定事件
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('participateBtn').addEventListener('click', participateInProject);
-            document.getElementById('editBtn').addEventListener('click', () => {
-                const editModal = new bootstrap.Modal(document.getElementById('editModal'));
-                editModal.show();
-            });
-            document.getElementById('deleteProject').addEventListener('click', deleteProject);
-            document.getElementById('saveEdit').addEventListener('click', saveEdit);
-            document.getElementById('refreshRecords').addEventListener('click', fetchProjectRecords);
-        });
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

@@ -4,129 +4,145 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>检查表</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .checklist-card {
-            cursor: pointer;
-            transition: all 0.3s ease;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .checklist-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .checklist-card { cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="d-flex align-items-center">
-                <a href="/" class="text-decoration-none text-dark me-2">
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
                     <i class="bi bi-arrow-left"></i>
-                </a>
-                检查表
-            </h2>
-            <button id="editBtn" class="btn btn-outline-primary">
-                <i class="bi bi-pencil"></i> 编辑
-            </button>
-        </div>
+                </el-button>
+                <div class="page-title">检查表</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button plain @click="reload" :loading="loading">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
+                    <el-button type="primary" plain @click="goEdit">
+                        <i class="bi bi-pencil"></i>
+                        编辑
+                    </el-button>
+                </div>
+            </div>
 
-        <div id="checklistsContainer" class="row">
-            <!-- Checklists will be loaded here -->
+            <el-card shadow="hover" style="border-radius: 12px;" v-loading="loading">
+                <el-empty v-if="!loading && checklists.length === 0" description="暂无检查表" />
+
+                <el-row v-else :gutter="12">
+                    <el-col v-for="c in checklists" :key="c.id" :xs="24" :sm="12" :md="8" style="margin-bottom: 12px;">
+                        <el-card class="checklist-card" shadow="hover" @click="openChecklist(c.id)" style="border-radius: 12px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px;">
+                                <div style="font-weight: 700; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.name }}</div>
+                                <i class="bi bi-chevron-right" style="color:#909399;"></i>
+                            </div>
+                        </el-card>
+                    </el-col>
+                </el-row>
+            </el-card>
         </div>
     </div>
 
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
+        const { createApp, ref, onMounted } = Vue;
+        const { ElMessage } = ElementPlus;
 
-        // Load all checklists
-        async function loadChecklists() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const checklists = ref([]);
 
-                const response = await fetch('/api/getChecklists', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
                     }
-                });
+                    return null;
+                };
 
-                const data = await response.json();
-                if (data.success) {
-                    renderChecklists(data.checklists);
-                } else {
-                    alert(data.message || '加载检查表失败');
-                }
-            } catch (error) {
-                console.error('Error loading checklists:', error);
-                alert('加载检查表失败，请重试');
+                const ensureAuth = () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+                    return session;
+                };
+
+                const goBack = () => {
+                    window.location.href = '/';
+                };
+
+                const goEdit = () => {
+                    window.location.href = '/view/checklists_edit.html';
+                };
+
+                const openChecklist = (id) => {
+                    window.location.href = `/view/checklist.html?id=${id}`;
+                };
+
+                const reload = async () => {
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loading.value = true;
+                    try {
+                        const res = await fetch('/api/getChecklists', {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载检查表失败');
+                        checklists.value = Array.isArray(data.checklists) ? data.checklists : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载检查表失败');
+                        checklists.value = [];
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                onMounted(reload);
+
+                return {
+                    loading,
+                    checklists,
+                    goBack,
+                    goEdit,
+                    openChecklist,
+                    reload
+                };
             }
-        }
-
-        // Render checklists
-        function renderChecklists(checklists) {
-            const container = document.getElementById('checklistsContainer');
-            container.innerHTML = '';
-
-            if (checklists.length === 0) {
-                container.innerHTML = `
-                    <div class="col-12">
-                        <div class="alert alert-info text-center">
-                            暂无检查表
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-
-            checklists.forEach(checklist => {
-                const card = document.createElement('div');
-                card.className = 'col-md-6 col-lg-4 mb-4';
-                card.innerHTML = `
-                    <div class="card checklist-card h-100" onclick="openChecklist(${checklist.id})">
-                        <div class="card-body d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">${checklist.name}</h5>
-                            <i class="bi bi-chevron-right text-muted"></i>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // Open checklist detail page
-        function openChecklist(checklistId) {
-            window.location.href = `/view/checklist.html?id=${checklistId}`;
-        }
-
-        // Toggle edit mode
-        function toggleEditMode() {
-            window.location.href = '/view/checklists_edit.html';
-        }
-
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', () => {
-            loadChecklists();
-            
-            const editBtn = document.getElementById('editBtn');
-            editBtn.addEventListener('click', toggleEditMode);
-        });
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

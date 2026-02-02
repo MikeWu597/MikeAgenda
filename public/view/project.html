@@ -4,142 +4,151 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>所有项目</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .project-card {
-            margin-bottom: 1rem;
-            cursor: pointer;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .project-details {
-            display: block; /* 默认展开 */
-        }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .muted { color: #909399; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <h2 class="mb-4">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <a href="../dash.html" class="text-decoration-none text-dark me-2">
-                            <i class="bi bi-arrow-left"></i>
-                        </a>
-                        所有项目
-                        <button class="btn btn-primary ms-auto" onclick="window.location.href='../create/project.html'">
-                            <i class="bi bi-plus-lg"></i> 新建项目
-                        </button>
-                    </div>
-                </h2>
-                <div id="projectsContainer">
-                    <div class="text-center">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">加载中...</span>
-                        </div>
-                    </div>
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
+                    <i class="bi bi-arrow-left"></i>
+                </el-button>
+                <div class="page-title">所有项目</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button type="primary" @click="goCreate">
+                        <i class="bi bi-plus-lg"></i>
+                        新建项目
+                    </el-button>
+                    <el-button plain @click="load" :loading="loading">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
                 </div>
             </div>
+
+            <el-card shadow="hover" style="border-radius: 12px;">
+                <el-table
+                    v-loading="loading"
+                    :data="projects"
+                    style="width: 100%"
+                    @row-click="openDetail"
+                    empty-text="暂无项目"
+                >
+                    <el-table-column label="" width="46">
+                        <template #default="{ row }">
+                            <div :style="{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: row.color || '#dcdfe6' }"></div>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="name" label="名称" min-width="180" />
+                    <el-table-column prop="description" label="描述" min-width="260">
+                        <template #default="{ row }">
+                            <span class="muted">{{ row.description || '无描述' }}</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="id" label="#" width="90" />
+                    <el-table-column label="" width="110">
+                        <template #default>
+                            <span class="muted">点击查看</span>
+                        </template>
+                    </el-table-column>
+                </el-table>
+            </el-card>
         </div>
     </div>
 
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        // 从 cookie 中获取 session
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
+        const { createApp, ref, onMounted } = Vue;
+        const { ElMessage } = ElementPlus;
 
-        // 获取项目列表
-        async function fetchProjects() {
-            try {
-                const response = await fetch('/api/getProjects', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': getSessionFromCookie()
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const projects = ref([]);
+
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
                     }
-                });
-                
-                if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                    renderProjects(data.projects);
-                } else {
-                    alert(data.message || '加载项目失败');
-                }
-            } catch (error) {
-                console.error('Error fetching projects:', error);
-                alert('加载项目失败，请重试');
-            }
-        }
+                    return null;
+                };
 
-        // 渲染项目列表
-        function renderProjects(projects) {
-            const container = document.getElementById('projectsContainer');
-            
-            if (projects.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-5">
-                        <p>暂无项目</p>
-                        <button class="btn btn-primary" onclick="window.location.href='../create/project.html'">
-                            <i class="bi bi-plus-lg"></i> 创建第一个项目
-                        </button>
-                    </div>
-                `;
-                return;
-            }
-            
-            container.innerHTML = '';
-            
-            projects.forEach(project => {
-                const card = document.createElement('div');
-                card.className = 'card project-card';
-                card.innerHTML = `
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <div class="me-3" style="width: 20px; height: 20px; background-color: ${project.color}; border-radius: 4px;"></div>
-                            <h5>${project.name}</h5>
-                        </div>
-                        <div>
-                            <span class="badge bg-secondary">#${project.id}</span>
-                        </div>
-                    </div>
-                    <div class="card-body project-details">
-                        <p>${project.description || '无描述'}</p>
-                    </div>
-                `;
-                container.appendChild(card);
-                
-                // 添加卡片点击事件，跳转到详情页面
-                card.addEventListener('click', () => {
-                    window.location.href = `project_detail.html?id=${project.id}`;
-                });
-            });
-        }
+                const ensureAuth = () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return null;
+                    }
+                    return session;
+                };
 
-        // 页面加载完成后获取项目列表
-        document.addEventListener('DOMContentLoaded', () => {
-            const session = getSessionFromCookie();
-            if (!session) {
-                alert('未授权，请重新登录');
-                window.location.href = '/login.html';
-                return;
+                const load = async () => {
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loading.value = true;
+                    try {
+                        const res = await fetch('/api/getProjects', {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载项目失败');
+                        projects.value = Array.isArray(data.projects) ? data.projects : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载项目失败');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const openDetail = (row) => {
+                    if (!row?.id) return;
+                    window.location.href = `project_detail.html?id=${row.id}`;
+                };
+
+                const goBack = () => {
+                    window.location.href = '/dash.html';
+                };
+
+                const goCreate = () => {
+                    window.location.href = '/create/project.html';
+                };
+
+                onMounted(load);
+
+                return { loading, projects, load, openDetail, goBack, goCreate };
             }
-            
-            fetchProjects();
-        });
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

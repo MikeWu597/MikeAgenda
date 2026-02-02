@@ -4,1456 +4,570 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>首页</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        /* 修改: 调整顶部悬浮菜单栏按钮的大小 */
-        .top-menu-btn {
-            width: 48px; /* 修改: 从56px改为48px */
-            height: 48px; /* 修改: 从56px改为48px */
-            font-size: 20px; /* 修改: 从24px改为20px */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-
-        /* 修改: 增加页面内容的顶部间距 */
-        .container {
-            margin-top: 80px; /* 修改: 从mt-3改为80px的固定值 */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
         }
-
-        /* 新增样式：顶部悬浮菜单栏 */
-        .top-menu {
+        #app {
+            min-height: 100vh;
+        }
+        /* 顶部导航栏 */
+        .top-header {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100%;
-            background-color: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            right: 0;
+            height: 60px;
+            background: white;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
             z-index: 1000;
             display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
+            padding: 0 20px;
         }
-
-        .top-menu-btn {
-            width: 32px;
-            height: 32px;
-            background-color: #007bff;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            user-select: none;
-        }
-
-        .top-menu-btn:hover {
-            background-color: #0056b3;
-        }
-
-        .current-time {
+        .header-title {
             font-size: 20px;
-            font-weight: bold;
-            color: #333;
+            font-weight: 600;
+            color: #303133;
         }
-
-        /* 新增样式：时间轴容器 */
-        .timeline-container {
-            position: relative;
-            width: 100%;
-            max-width: 200px;
-            margin-right: 20px;
-        }
-
-        .timeline-item {
-            position: relative;
-            padding-left: 20px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .timeline-item:hover {
-            color: #007bff;
-        }
-
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 10px;
-            height: 10px;
-            background-color: #007bff;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .timeline-item::after {
-            content: '';
-            position: absolute;
-            left: 5px;
-            top: 25px;
-            height: calc(100% - 25px);
-            width: 2px;
-            background-color: #ddd;
-        }
-
-        /* 新增样式：浮于页脚的菜单栏 */
-        .footer-menu {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-        }
-
-        .footer-menu-btn {
-            width: 56px;
-            height: 56px;
-            background-color: #007bff;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            user-select: none;
-        }
-
-        .footer-menu-btn:hover {
-            background-color: #0056b3;
-        }
-
-        .expanded-menu {
-            position: fixed; /* 修改：从 absolute 改为 fixed */
-            bottom: 86px; /* 原来是66px，向上移动20px */
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .expanded-menu.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .expanded-menu-btn {
-            width: 56px;
-            height: 56px;
-            background-color: #007bff;
-            color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-            user-select: none;
-        }
-
-        .expanded-menu-btn:hover {
-            background-color: #0056b3;
-        }
-
-        /* 新增样式：并排容器 */
-        .container-row {
-            display: flex;
-            gap: 0;
-            margin-top: 20px;
-            flex-wrap: wrap; /* 新增：允许换行 */
-        }
-
-        .column-container {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 0;
-            flex: 1 1 45%; /* 修改：允许弹性伸缩 */
-            min-width: 300px; /* 新增：设置最小宽度 */
-        }
-
-        .column-container:first-child {
-            /* 修改：移除固定比例，使用弹性布局 */
-            border-right: none;
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-        }
-
-        .column-container:last-child {
-            /* 修改：移除固定比例，使用弹性布局 */
-            border-left: none;
-            border-top-left-radius: 0;
-            border-bottom-left-radius: 0;
-        }
-
-        /* 新增：响应式断点，当屏幕宽度小于768px时纵向排列 */
-        @media (max-width: 768px) {
-            .container-row {
-                flex-direction: column;
-            }
-            
-            .column-container,
-            .column-container:first-child,
-            .column-container:last-child {
-                flex: 1 1 100%;
-                border-radius: 8px;
-                border: 1px solid #ddd;
-                margin-bottom: 15px;
-            }
-        }
-
-        .column-header {
+        .header-date {
             font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            text-align: left; /* 修改：将标题改为左对齐 */
+            font-weight: 500;
+            color: #409eff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-
-        h5 {
-            margin: 2px; /* 移除标题的默认外边距，确保对齐 */
+        .header-actions {
+            display: flex;
+            gap: 12px;
         }
-        
-        /* 新增：项目卡片样式 */
-        .project-color-indicator {
-            display: inline-block;
-            width: 15px;
-            height: 15px;
-            border-radius: 3px;
-            margin-right: 10px;
+        /* 主内容区 */
+        .main-content {
+            padding-top: 80px;
+            padding-bottom: 80px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+        /* 布局网格 */
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        @media (max-width: 768px) {
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        /* 卡片样式 */
+        .section-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #303133;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .section-icon {
+            font-size: 20px;
+            margin-right: 8px;
+        }
+        /* 待办事项样式 */
+        .item-card {
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            border: 1px solid #e4e7ed;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .item-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .item-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #303133;
+            margin-bottom: 8px;
+        }
+        .item-meta {
+            font-size: 13px;
+            color: #909399;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .item-tag {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        /* 底部悬浮菜单 */
+        .float-menu {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #909399;
+        }
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
         }
     </style>
 </head>
 <body>
-    <!-- 新增顶部悬浮菜单栏 -->
-    <div class="top-menu">
-        <div class="top-menu-btn" id="prevDayBtn">
-            <i class="bi bi-chevron-left"></i>
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <div class="top-header">
+            <div class="header-title">我的日程</div>
+            <div class="header-date" @click="showDatePicker">
+                <i class="bi bi-calendar3"></i>
+                {{ formattedDate }}
+            </div>
+            <div class="header-actions">
+                <el-button circle @click="logout">
+                    <i class="bi bi-box-arrow-right"></i>
+                </el-button>
+            </div>
         </div>
-        <div class="current-time" id="currentTime" onclick="showCalendar()"></div>
-        <div class="top-menu-btn" id="nextDayBtn">
-            <i class="bi bi-chevron-right"></i>
-        </div>
-    </div>
 
-    <div class="container" style="margin-top:50px">
-        <div class="row justify-content-center">
-            <div class="col-md-12">
-                <div class="container-row">
-                    <div class="column-container" id="leftContainer">
-                        <div id="scheduleContainer">
-                        </div>
+        <!-- 主内容区 -->
+        <div class="main-content">
+            <!-- 日期导航 -->
+            <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px;">
+                <el-button @click="changeDate(-1)" circle>
+                    <i class="bi bi-chevron-left"></i>
+                </el-button>
+                <span style="font-size: 16px; font-weight: 500;">{{ dateDisplay }}</span>
+                <el-button @click="changeDate(1)" circle>
+                    <i class="bi bi-chevron-right"></i>
+                </el-button>
+            </div>
+
+            <!-- 内容网格 -->
+            <div class="content-grid">
+                <!-- 待办事项 -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span><i class="bi bi-check-circle section-icon"></i>待办事项 ({{ items.length }})</span>
+                        <el-button type="primary" size="small" @click="goToPage('/create/item.html')">
+                            <i class="bi bi-plus-lg"></i> 新建
+                        </el-button>
                     </div>
-                    <div class="column-container">
-                        <div id="todayPlanContainer">
-                            <div class="column-header" id="dayTitle">当日计划</div>
-                            <div class="timeline-container" id="timelineContainer"></div>
-                        </div>
-                        <div id="cycleContainerWrapper">
-                            <div class="column-header mt-4" id="cycleTitle">循环</div>
-                            <div id="cycleContainer"></div>
-                        </div>
-                        
-                        <!-- 新增：续费板块 -->
-                        <div id="renewalContainerWrapper">
-                            <div class="column-header mt-4" id="renewalTitle">续费</div>
-                            <div id="renewalContainer"></div>
+                    <div v-if="items.length === 0" class="empty-state">
+                        <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+                        <div>暂无待办事项</div>
+                    </div>
+                    <div v-for="item in items" :key="item.id" class="item-card" @click="goToPage('/view/item.html')">
+                        <div class="item-title">{{ item.title }}</div>
+                        <div class="item-meta">
+                            <span v-if="item.deadline"><i class="bi bi-alarm"></i> {{ item.deadline }}</span>
+                            <el-tag v-if="item.categoryName" size="small" :type="getCategoryType(item.categoryId)">
+                                {{ item.categoryName }}
+                            </el-tag>
                         </div>
                     </div>
                 </div>
-                <div class="container-row">
-                    <div class="column-container">
-                        <div id="todoContainer">
+
+                <!-- 周期任务 -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span><i class="bi bi-arrow-repeat section-icon"></i>周期任务 ({{ cycles.length }})</span>
+                        <el-button type="primary" size="small" @click="goToPage('/create/cycle.html')">
+                            <i class="bi bi-plus-lg"></i> 新建
+                        </el-button>
+                    </div>
+                    <div v-if="cycles.length === 0" class="empty-state">
+                        <div class="empty-icon"><i class="bi bi-arrow-clockwise"></i></div>
+                        <div>暂无周期任务</div>
+                    </div>
+                    <div v-for="cycle in cycles" :key="cycle.id" class="item-card" @click="goToPage('/view/cycle.html')">
+                        <div class="item-title">{{ cycle.title }}</div>
+                        <div class="item-meta">
+                            <span><i class="bi bi-calendar-event"></i> {{ cycle.frequency }}</span>
                         </div>
-                        
-                        <!-- 新增：项目板块 -->
-                        <div id="projectContainerWrapper">
-                            <div class="column-header mt-4" id="projectTitle">项目</div>
-                            <div id="projectContainer"></div>
+                    </div>
+                </div>
+
+                <!-- 续订提醒 -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span><i class="bi bi-bell section-icon"></i>续订提醒 ({{ renewals.length }})</span>
+                        <el-button type="primary" size="small" @click="goToPage('/create/renewal.html')">
+                            <i class="bi bi-plus-lg"></i> 新建
+                        </el-button>
+                    </div>
+                    <div v-if="renewals.length === 0" class="empty-state">
+                        <div class="empty-icon"><i class="bi bi-bell-slash"></i></div>
+                        <div>暂无续订提醒</div>
+                    </div>
+                    <div v-for="renewal in renewals" :key="renewal.id" class="item-card" @click="goToPage('/view/renewal.html')">
+                        <div class="item-title">{{ renewal.name }}</div>
+                        <div class="item-meta">
+                            <span><i class="bi bi-calendar-check"></i> {{ renewal.next_renewal_date }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 项目 -->
+                <div class="section-card">
+                    <div class="section-title">
+                        <span><i class="bi bi-folder section-icon"></i>项目 ({{ projects.length }})</span>
+                        <el-button type="primary" size="small" @click="goToPage('/create/project.html')">
+                            <i class="bi bi-plus-lg"></i> 新建
+                        </el-button>
+                    </div>
+                    <div v-if="projects.length === 0" class="empty-state">
+                        <div class="empty-icon"><i class="bi bi-folder2-open"></i></div>
+                        <div>暂无项目</div>
+                    </div>
+                    <div v-for="project in projects" :key="project.id" class="item-card" @click="goToProject(project.id)">
+                        <div class="item-title">{{ project.name }}</div>
+                        <div class="item-meta">
+                            <el-tag size="small" :type="project.is_active ? 'success' : 'info'">
+                                {{ project.is_active ? '进行中' : '已完成' }}
+                            </el-tag>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- 底部悬浮菜单 -->
+        <div class="float-menu">
+            <el-dropdown trigger="click" placement="top">
+                <el-button type="primary" circle size="large">
+                    <i class="bi bi-plus-lg" style="font-size: 20px;"></i>
+                </el-button>
+                <template #dropdown>
+                    <el-dropdown-menu>
+                        <el-dropdown-item @click="goToPage('/view/item.html')">
+                            <i class="bi bi-list-check"></i> 查看事项
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/cycle.html')">
+                            <i class="bi bi-arrow-repeat"></i> 查看周期
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/renewal.html')">
+                            <i class="bi bi-bell"></i> 查看续订
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/project.html')">
+                            <i class="bi bi-folder"></i> 查看项目
+                        </el-dropdown-item>
+                        <el-dropdown-item divided @click="goToPage('/view/category.html')">
+                            <i class="bi bi-tags"></i> 管理分类
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/checklists.html')">
+                            <i class="bi bi-card-checklist"></i> 检查清单
+                        </el-dropdown-item>
+                        <el-dropdown-item divided @click="goToPage('/tool/farm.html')">
+                            <i class="bi bi-camera"></i> 农场监控
+                        </el-dropdown-item>
+                    </el-dropdown-menu>
+                </template>
+            </el-dropdown>
+        </div>
+
+        <!-- 日期选择器对话框 -->
+        <el-dialog v-model="datePickerVisible" title="选择日期" width="400px">
+            <el-date-picker
+                v-model="selectedDate"
+                type="date"
+                placeholder="选择日期"
+                style="width: 100%"
+                @change="onDateChange"
+            />
+        </el-dialog>
     </div>
 
-    <div class="footer-menu">
-        <div class="footer-menu-btn" id="viewMenuBtn">
-            <i class="bi bi-eye"></i>
-        </div>
-        <div class="footer-menu-btn" id="createMenuBtn">
-            <i class="bi bi-plus"></i>
-        </div>
-        <!-- 新增: 工具菜单按钮 -->
-        <div class="footer-menu-btn" id="toolMenuBtn">
-            <i class="bi bi-wrench"></i>
-        </div>
-    </div>
-
-    <!-- 新增: 页脚小字链接 -->
-    <div style="text-align: center; margin-top: 10px; height:130px; font-size: 0.8rem; color: #6c757d;" id="footerLinks">
-        <a href="/about.html" class="text-decoration-none">关于</a><a href="/status.html" class="text-decoration-none" style="margin-left:1rem">系统状态</a><a href="/view/courses.html" class="text-decoration-none" style="margin-left:1rem">课程表管理</a><a href="/settings.html" class="text-decoration-none" style="margin-left:1rem">设置</a>
-    </div>
-
-    <div class="expanded-menu" id="viewExpandedMenu">
-        <div class="expanded-menu-btn" id="viewCategoryBtn">
-            <i class="bi bi-folder"></i>
-        </div>
-        <div class="expanded-menu-btn" id="viewItemBtn">
-            <i class="bi bi-calendar-check"></i>
-        </div>
-        <div class="expanded-menu-btn" id="viewCycleBtn">
-            <i class="bi bi-arrow-clockwise"></i>
-        </div>
-        <div class="expanded-menu-btn" id="viewProjectBtn">
-            <i class="bi bi-kanban"></i>
-        </div>
-        <div class="expanded-menu-btn" id="viewRenewalCategoryBtn">
-            <i class="bi bi-minecart-loaded"></i>
-        </div>
-        <div class="expanded-menu-btn" id="viewRenewalBtn">
-            <i class="bi bi-file-earmark-spreadsheet"></i>
-        </div>
-    </div>
-
-    <div class="expanded-menu" id="createExpandedMenu">
-        <div class="expanded-menu-btn" id="createCategoryBtn">
-            <i class="bi bi-folder-plus"></i>
-        </div>
-        <div class="expanded-menu-btn" id="createItemBtn">
-            <i class="bi bi-calendar-plus"></i>
-        </div>
-        <div class="expanded-menu-btn" id="createCycleBtn">
-            <i class="bi bi-arrow-clockwise"></i>
-        </div>
-        <div class="expanded-menu-btn" id="createProjectBtn">
-            <i class="bi bi-kanban"></i>
-        </div>
-        <div class="expanded-menu-btn" id="createRenewalCategoryBtn">
-            <i class="bi bi-minecart-loaded"></i>
-        </div>
-        <div class="expanded-menu-btn" id="createRenewalBtn">
-            <i class="bi bi-file-earmark-spreadsheet"></i>
-        </div>
-    </div>
-
-    <!-- 新增: 工具扩展菜单 -->
-    <div class="expanded-menu" id="toolExpandedMenu">
-        <div class="expanded-menu-btn" id="toolBtnToHH">
-            <i class="bi bi-train-front" style="position: relative;">
-                <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; 
-                    text-shadow: 
-                        -2px -2px 0 #007bff,  
-                        2px -2px 0 #007bff,
-                        -2px 2px 0 #007bff,
-                        2px 2px 0 #007bff;">H</span>
-            </i>
-        </div>
-        <div class="expanded-menu-btn" id="toolBtnToAUS">
-            <i class="bi bi-train-front" style="position: relative;">
-                <span style="position: absolute; font-size: 20px; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold;
-                    text-shadow: 
-                        -2px -2px 0 #007bff,  
-                        2px -2px 0 #007bff,
-                        -2px 2px 0 #007bff,
-                        2px 2px 0 #007bff;">A</span>
-            </i>
-        </div>
-        <!-- 新增: 学校点餐系统按钮 -->
-        <div class="expanded-menu-btn" id="toolBtnFoodOrder">
-            <i class="bi bi-shop"></i>
-        </div>
-        <div class="expanded-menu-btn" id="toolBtnNoodleOrder">
-            <i class="bi bi-fork-knife"></i>
-        </div>
-        <!-- 新增: 检查表按钮 -->
-        <div class="expanded-menu-btn" id="toolBtnChecklists">
-            <i class="bi bi-clipboard-check"></i>
-        </div>
-
-        <!-- 新增: 农场最新图片 -->
-        <div class="expanded-menu-btn" id="toolBtnFarm">
-            <i class="bi bi-camera"></i>
-        </div>
-    </div>
-
-    <div id="calendarModal" class="modal">
-        <div class="modal-content">
-            <span class="close" onclick="closeCalendar()">&times;</span>
-            <div id="calendar"></div>
-        </div>
-    </div>
-
-    <style>
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 300px;
-            border-radius: 5px;
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        #calendar {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 5px;
-            text-align: center;
-        }
-
-        .day-name {
-            font-weight: bold;
-            color: #555;
-        }
-    </style>
-
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
+    <script src="/vendor/element-plus-icons/icons-vue.iife.min.js"></script>
     <script>
-        // 获取URL中的date参数
-        const urlParams = new URLSearchParams(window.location.search);
-        const dateParam = urlParams.get('date');
-        const currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
-        
-        function getLocalTimeString() {
-            // 获取当前本地时间（东八区）
-            const now = currentDate;
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const localTimeString = `${year}${month}${day}`;
-            return localTimeString;
-        }
-        // 格式化日期为YYYYMMDD格式
-        const formattedDate = getLocalTimeString();
+        const { createApp, ref, reactive, computed, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
 
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
-
-        function showCalendar() {
-            document.getElementById('calendarModal').style.display = 'block';
-            renderCalendar();
-        }
-
-        function closeCalendar() {
-            document.getElementById('calendarModal').style.display = 'none';
-        }
-
-        function renderCalendar() {
-            const calendarDiv = document.getElementById('calendar');
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = now.getMonth();
-            
-            // Clear previous calendar
-            calendarDiv.innerHTML = '';
-            
-            // Add day names
-            const daysOfWeek = ['日', '一', '二', '三', '四', '五', '六'];
-            daysOfWeek.forEach(day => {
-                const div = document.createElement('div');
-                div.className = 'day-name';
-                div.textContent = day;
-                calendarDiv.appendChild(div);
-            });
-            
-            // Get first day of month and number of days
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            // Add empty cells for days before first day
-            for (let i = 0; i < firstDay; i++) {
-                const div = document.createElement('div');
-                calendarDiv.appendChild(div);
-            }
-            
-            // Add days of the month
-            for (let i = 1; i <= daysInMonth; i++) {
-                const div = document.createElement('div');
-                div.textContent = i;
-                div.style.cursor = 'pointer';
-                div.style.padding = '5px';
-                div.style.borderRadius = '4px';
-                div.addEventListener('mouseenter', () => {
-                    div.style.backgroundColor = '#f0f0f0';
-                });
-                div.addEventListener('mouseleave', () => {
-                    div.style.backgroundColor = '';
-                });
+        createApp({
+            setup() {
+                const currentDate = ref(new Date());
+                const datePickerVisible = ref(false);
+                const selectedDate = ref(new Date());
                 
-                // Add click event to select date
-                div.addEventListener('click', () => {
-                    const selectedDate = new Date(year, month, i + 1);
-                    const formattedDate = selectedDate.toISOString().split('T')[0].replace(/-/g, '');
+                const items = ref([]);
+                const cycles = ref([]);
+                const renewals = ref([]);
+                const projects = ref([]);
+                const categories = ref([]);
+
+                // 格式化日期显示
+                const formattedDate = computed(() => {
+                    const date = currentDate.value;
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                });
+
+                const dateDisplay = computed(() => {
+                    const date = currentDate.value;
+                    const today = new Date();
+                    const diffTime = date.getTime() - today.setHours(0, 0, 0, 0);
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                     
-                    // Update URL with selected date
-                    const urlParams = new URLSearchParams(window.location.search);
-                    urlParams.set('date', formattedDate);
-                    window.location.search = urlParams.toString();
-                });
-                
-                if (i === now.getDate() && new Date().getMonth() === month && new Date().getFullYear() === year) {
-                    div.style.fontWeight = 'bold';
-                    div.style.color = 'blue';
-                }
-                calendarDiv.appendChild(div);
-            }
-
-            // 修改：放大日历字体
-            const calendarStyle = document.createElement('style');
-            calendarStyle.textContent = `
-                #calendar {
-                    font-size: 20px; /* 放大字体 */
-                    grid-template-columns: repeat(7, 1fr);
-                    gap: 8px;
-                }
-                .day-name {
-                    font-size: 20px; /* 放大星期字体 */
-                    padding: 5px;
-                }
-                #calendar > div {
-                    transition: all 0.2s ease;
-                }
-                #calendar > div:hover {
-                    transform: scale(1.1);
-                }
-            `;
-            document.head.appendChild(calendarStyle);
-        }
-
-        function loadContent() {
-            const viewMenuBtn = document.getElementById('viewMenuBtn');
-            const createMenuBtn = document.getElementById('createMenuBtn');
-            const viewExpandedMenu = document.getElementById('viewExpandedMenu');
-            const createExpandedMenu = document.getElementById('createExpandedMenu');
-
-            // 新增: 获取工具菜单元素
-            const toolMenuBtn = document.getElementById('toolMenuBtn');
-            const toolExpandedMenu = document.getElementById('toolExpandedMenu');
-
-            // 新增：获取顶部菜单按钮
-            const prevDayBtn = document.getElementById('prevDayBtn');
-            const nextDayBtn = document.getElementById('nextDayBtn');
-            const currentTimeElement = document.getElementById('currentTime');
-
-            // 修改：实时时间更新函数
-            function updateTime() {
-                const now = new Date();
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const seconds = String(now.getSeconds()).padStart(2, '0');
-
-                // 获取URL中的date参数
-                const urlParams = new URLSearchParams(window.location.search);
-                const dateParam = urlParams.get('date');
-                const currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
-
-                // 判断是否是今天的日期
-                const isToday = currentDate.toDateString() === now.toDateString();
-
-                // 如果是今天，显示实时时间；否则显示具体的日期
-                if (isToday) {
-                    currentTimeElement.textContent = `${hours}:${minutes}:${seconds}`;
-                } else {
-                    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(currentDate.getDate()).padStart(2, '0');
-                    currentTimeElement.textContent = `${month}月${day}日`;
-                }
-            }
-
-            // 新增：日期切换函数
-            function updateDate(offset) {
-                const urlParams = new URLSearchParams(window.location.search);
-                let dateParam = urlParams.get('date');
-                let currentDate = dateParam ? new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3')) : new Date();
-
-                // 根据偏移量更新日期
-                currentDate.setDate(currentDate.getDate() + offset);
-
-                // 更新 URL 参数并重新加载页面
-                urlParams.set('date', currentDate.toISOString().split('T')[0].replace(/-/g, ''));
-                window.location.search = urlParams.toString();
-            }
-
-            // 新增：为左右按钮绑定事件
-            prevDayBtn.addEventListener('click', () => updateDate(-1));
-            nextDayBtn.addEventListener('click', () => updateDate(1));
-
-            // 启动实时时间更新
-            updateTime();
-            setInterval(updateTime, 1000);
-
-            // 点击查看菜单按钮时显示查看扩展菜单并隐藏新建扩展菜单
-            viewMenuBtn.addEventListener('click', function() {
-                viewExpandedMenu.classList.toggle('active');
-                createExpandedMenu.classList.remove('active');
-                createMenuBtn.classList.remove('active'); // 隐藏新建按钮
-                toolExpandedMenu.classList.remove('active'); // 隐藏工具菜单
-            });
-
-            // 点击新建菜单按钮时显示新建扩展菜单并隐藏查看扩展菜单
-            createMenuBtn.addEventListener('click', function() {
-                createExpandedMenu.classList.toggle('active');
-                viewExpandedMenu.classList.remove('active');
-                viewMenuBtn.classList.remove('active'); // 隐藏查看按钮
-                toolExpandedMenu.classList.remove('active'); // 隐藏工具菜单
-            });
-
-            // 新增: 点击工具菜单按钮时显示工具扩展菜单
-            toolMenuBtn.addEventListener('click', function() {
-                toolExpandedMenu.classList.toggle('active');
-                viewExpandedMenu.classList.remove('active');
-                createExpandedMenu.classList.remove('active');
-                viewMenuBtn.classList.remove('active'); // 隐藏查看按钮
-                createMenuBtn.classList.remove('active'); // 隐藏新建按钮
-            });
-
-            // 点击其他地方时关闭扩展菜单
-            document.addEventListener('click', function(event) {
-                if (!viewMenuBtn.contains(event.target) && !viewExpandedMenu.contains(event.target)) {
-                    viewExpandedMenu.classList.remove('active');
-                }
-                if (!createMenuBtn.contains(event.target) && !createExpandedMenu.contains(event.target)) {
-                    createExpandedMenu.classList.remove('active');
-                }
-                // 新增: 点击其他地方时关闭工具扩展菜单
-                if (!toolMenuBtn.contains(event.target) && !toolExpandedMenu.contains(event.target)) {
-                    toolExpandedMenu.classList.remove('active');
-                }
-            });
-            // 点击创建事项按钮时跳转到 item.html
-            createItemBtn.addEventListener('click', function() {
-                window.location.href = '/create/item.html';
-            });
-
-            // 新增: 点击创建分类按钮时跳转到 category.html
-            createCategoryBtn.addEventListener('click', function() {
-                window.location.href = '/create/category.html';
-            });
-
-            // 新增: 点击创建循环按钮时跳转到 cycle.html
-            createCycleBtn.addEventListener('click', function() {
-                window.location.href = '/create/cycle.html';
-            });
-
-            // 新增: 点击创建续费分类按钮时跳转到 renewal_category.html
-            createRenewalCategoryBtn.addEventListener('click', function() {
-                window.location.href = '/create/renewal_category.html';
-            });
-
-            // 新增: 点击创建续费按钮时跳转到 renewal.html
-            createRenewalBtn.addEventListener('click', function() {
-                window.location.href = '/create/renewal.html';
-            });
-
-            // 新增: 点击查看事项按钮时跳转到 item.html
-            viewItemBtn.addEventListener('click', function() {
-                window.location.href = '/view/item.html';
-            });
-
-            // 新增: 点击查看分类按钮时跳转到 category.html
-            viewCategoryBtn.addEventListener('click', function() {
-                window.location.href = '/view/category.html';
-            });
-
-            // 新增: 点击查看循环按钮时跳转到 cycle.html
-            viewCycleBtn.addEventListener('click', function() {
-                window.location.href = '/view/cycle.html';
-            });
-
-            // 新增: 点击查看续费分类按钮时跳转到 renewal_category.html
-            viewRenewalCategoryBtn.addEventListener('click', function() {
-                window.location.href = '/view/renewal_category.html';
-            });
-
-            // 新增: 点击查看续费按钮时跳转到 renewal.html
-            viewRenewalBtn.addEventListener('click', function() {
-                window.location.href = '/view/renewal.html';
-            });
-
-            toolBtnToHH.addEventListener('click', function() {
-                window.location.href = '/tool/to_hh.html';
-            });
-
-            toolBtnToAUS.addEventListener('click', function() {
-                window.location.href = '/tool/to_aus.html';
-            });
-
-            // 新增: 学校点餐系统按钮事件
-            toolBtnFoodOrder.addEventListener('click', function() {
-                window.open('https://csd.order.place/store/112871/mode/prekiosk?_aigens_source=scan&onpremise=true', '_blank');
-            });
-
-            // 新增: 遇见小面点餐系统按钮事件
-            toolBtnNoodleOrder.addEventListener('click', function() {
-                window.open('https://h5.xiaonoodles.com/materialQrcodeId=1839797535331319808', '_blank');
-            });
-
-            // 新增: 检查表按钮事件
-            toolBtnChecklists.addEventListener('click', function() {
-                window.location.href = '/view/checklists.html';
-            });
-
-            // 新增: 农场最新图片
-            toolBtnFarm.addEventListener('click', function() {
-                window.location.href = '/tool/farm.html';
-            });
-
-            // 项目管理按钮事件
-            viewProjectBtn.addEventListener('click', function() {
-                window.location.href = '/view/project.html';
-            });
-            
-            createProjectBtn.addEventListener('click', function() {
-                window.location.href = '/create/project.html';
-            });
-
-            // 新增辅助函数：判断两个日期是否属于同一天
-            function isSameDay(date1, date2) {
-                // 将 date1 转换为 YYYYMMDD 格式
-                const formattedDate1 = date1 ? date1.replace(/-/g, '').split('T')[0] : null;
-                // 将 date2 转换为 YYYYMMDD 格式
-                const formattedDate2 = date2;
-
-                // 比较两个日期
-                return formattedDate1 === formattedDate2;
-            }
-
-            // 新增：存储所有分类的变量
-            let allCategories = [];
-
-            
-            // 修改：在页面加载时获取所有分类
-            async function fetchCategories() {
-                try {
-                    const session = getSessionFromCookie();
-                    if (!session) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
-                        return;
-                    }
-
-                    const response = await fetch('/api/getCategories', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ session })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        allCategories = data.categories; // 存储所有分类
-                    } else if (response.status === 401) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
-                    } else {
-                        alert(data.message || '加载分类失败');
-                    }
-                } catch (error) {
-                    console.error('Error fetching categories:', error);
-                    alert('加载分类失败，请重试');
-                }
-            }
-
-            // 新增：获取今日循环并渲染
-            async function fetchTodayCycles(date) {
-                try {
-                    const session = getSessionFromCookie();
-                    if (!session) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
-                        return;
-                    }
-
-                    const response = await fetch('/api/getTodayCycles', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date, session })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        renderCycles(data.cycles);
-                    } else {
-                        console.error(data.message || '加载循环事项失败');
-                    }
-                } catch (error) {
-                    console.error('Error fetching today\'s cycles:', error);
-                    alert('加载循环事项失败，请重试');
-                }
-            }
-
-            // 新增：渲染循环事项
-            function renderCycles(cycles) {
-                const cycleContainer = document.getElementById('cycleContainer');
-                cycleContainer.innerHTML = ''; // 清空容器
-
-                cycles.forEach(cycle => {
-                    const card = document.createElement('div');
-                    card.className = 'card mb-3';
-
-                    // 解析分类信息
-                    const categoryIds = JSON.parse(cycle.category || '[]');
-                    const categoryBadges = categoryIds.map(id => {
-                        return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                    }).join('');
-
-                    card.innerHTML = `
-                        <div class="card-header">
-                            <div class="d-flex align-items-center">
-                                ${categoryBadges}
-                                <h5 class="ms-2">${cycle.name}</h5>
-                        </div>
-                    </div>
-                    ${cycle.note ? `<div class="card-body">
-                        <p>${cycle.note}</p>
-                        </div>` : ''}
+                    if (diffDays === 0) return '今天';
+                    if (diffDays === 1) return '明天';
+                    if (diffDays === -1) return '昨天';
                     
-                `;
-                cycleContainer.appendChild(card);
-            });
-            
-            // 更新循环标题显示数量
-            const cycleTitle = document.getElementById('cycleTitle');
-            cycleTitle.innerHTML = `循环 <span class="badge bg-primary">${cycles.length}</span>`;
-        }
-
-        // 修改：更新 getCategoryColor 和 getCategoryName 函数
-        function getCategoryColor(categoryId) {
-            const category = allCategories.find(c => c.id === categoryId);
-            return category ? category.color : '#000'; // 默认黑色
-        }
-
-        function getCategoryName(categoryId) {
-            const category = allCategories.find(c => c.id === categoryId);
-            return category ? category.name : '未知分类'; // 默认名称
-        }
-
-        // 修改：更新 renderItems 函数逻辑
-        async function renderItems(items, targetDate) {
-            await fetchCategories();
-            const todayPlanContainer = document.getElementById('todayPlanContainer');
-            const todoContainer = document.getElementById('todoContainer');
-            const timelineContainer = document.getElementById('timelineContainer');
-
-            // 清空容器
-            todayPlanContainer.innerHTML = '<div class="column-header" id="dayTitle">当日计划</div>';
-            todoContainer.innerHTML = '<div class="column-header">其他事项</div>';
-            timelineContainer.innerHTML = ''; // 清空时间轴
-
-            // 提取当天计划的事项并按时间排序
-            const todayItems = items
-                .filter(item => item.planned_time && isSameDay(item.planned_time, targetDate))
-                .sort((a, b) => new Date(a.planned_time) - new Date(b.planned_time));
-
-            todayItems.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'card mb-3';
-
-                // 解析分类信息
-                const categoryIds = JSON.parse(item.category || '[]');
-                const categoryBadges = categoryIds.map(id => {
-                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                }).join('');
-
-                // 左侧（当天计划）：只显示计划时间，不显示截止日期
-                const formattedTime = new Date(item.planned_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                card.innerHTML = `
-                    <div class="card-header">
-                            <strong>${formattedTime}</strong>
-                    </div><div class="card-body">
-                    
-                    <h5 class="ms-2">${categoryBadges}${item.title}</h5>
-                    ${item.description ? `<p>${item.description}</p>` : ''}
-                    </div>
-                `;
-                todayPlanContainer.appendChild(card);
-
-                // 新增：在时间轴上添加时间点
-                const timelineItem = document.createElement('div');
-                timelineItem.className = 'timeline-item';
-                timelineItem.textContent = formattedTime;
-                timelineItem.addEventListener('click', () => {
-                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                });
-                timelineContainer.appendChild(timelineItem);
-            });
-
-            // 更新当日计划标题显示数量
-            const dayTitle = document.getElementById('dayTitle');
-            dayTitle.innerHTML = `当日计划 <span class="badge bg-primary">${todayItems.length}</span>`;
-
-            // 待办事项：只显示截止日期，不显示计划时间
-            // 过滤出待办事项并按截止时间排序
-            const todoItems = items.filter(item => !item.done && !item.archived && !item.planned_time);
-            
-            // 自定义排序函数
-            todoItems.sort((a, b) => {
-                // 如果a没有截止时间，排在后面
-                if (!a.deadline) return 1;
-                // 如果b没有截止时间，排在前面
-                if (!b.deadline) return -1;
-                // 如果都有截止时间，按日期排序
-                return new Date(a.deadline) - new Date(b.deadline);
-            });
-
-            todoItems.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'card mb-3';
-
-                // 解析分类信息
-                const categoryIds = JSON.parse(item.category || '[]');
-                const categoryBadges = categoryIds.map(id => {
-                    return `<span class="badge me-1" style="background-color: ${getCategoryColor(id)};">${getCategoryName(id)}</span>`;
-                }).join('');
-
-                card.innerHTML = `
-                    <div class="card-header">
-                        <div class="d-flex align-items-center">
-                            ${categoryBadges}
-                            <h5 class="ms-2">${item.title}</h5>
-                        </div>
-                        ${item.deadline ? `<i class="bi bi-calendar-date" style="margin-right:4px"></i><small>${item.deadline}</small>` : ''}
-                    </div>
-                    ${item.description ? `<div class="card-body"><p class="card-text">${item.description}</p></div>` : ''}
-                `;
-                todoContainer.appendChild(card);
-            });
-            
-            // 更新其他事项标题显示数量
-            const todoTitle = todoContainer.querySelector('.column-header');
-            todoTitle.innerHTML = `其他事项 <span class="badge bg-primary">${todoItems.length}</span>`;
-        }
-
-        // 修改：在页面加载时获取所有数据
-        async function initializePage() {
-            await fetchCategories(); // 获取分类
-            await fetchRenewalCategories(); // 获取续费分类
-            await fetchItems();       // 获取事项
-            await fetchTodayCycles(formattedDate); // 获取今日循环
-            await fetchTodayRenewals(); // 获取今日续费项目
-            await loadTodaySchedule(); // 加载今日课程表
-            
-            // 新增：获取并渲染项目
-            const projects = await fetchProjects();
-            const projectParticipation = await fetchProjectRecordsForDate(
-                formattedDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3') // 转换为 YYYY-MM-DD 格式
-            );
-            renderProjects(projects, projectParticipation);
-        }
-
-            
-
-        // 获取当前日期的年、月、日
-        const year = currentDate.getFullYear();
-        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(currentDate.getDate()).padStart(2, '0');
-
-        // 获取事项列表
-        async function fetchItems() {
-            try {
-                const response = await fetch('/api/getItems', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': getSessionFromCookie() // 添加 session 参数
-                    }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    await renderItems(data.items, formattedDate);
-                } else {
-                    alert(data.message || '加载事项失败');
-                }
-            } catch (error) {
-                console.error('Error fetching items:', error);
-                alert('加载事项失败，请重试');
-            }
-        }
-
-        // 获取已完成事项列表
-        async function fetchTodayCycles(date) {
-            try {
-                const response = await fetch('/api/getTodayCycles', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': getSessionFromCookie() // 添加 session 参数
-                    },
-                    body: JSON.stringify({ date })
+                    return formattedDate.value;
                 });
 
-                const data = await response.json();
-                if (data.success) {
-                    renderCycles(data.cycles);
-                } else {
-                    console.error(data.message || '加载循环事项失败');
-                }
-            } catch (error) {
-                console.error('Error fetching today\'s cycles:', error);
-                alert('加载循环事项失败，请重试');
-            }
-        }
-
-        // 修改：在 scheduleContainer 中加载当天课程表
-        async function loadTodaySchedule() {
-            // 首先检查授课状态
-            const teachingStatus = await getTeachingStatus();
-            
-            const scheduleContainer = document.getElementById('scheduleContainer');
-            const leftContainer = document.getElementById('leftContainer');
-            
-            // 如果授课状态不是1，则不渲染课表
-            if (teachingStatus !== '1') {
-                scheduleContainer.innerHTML = ''; // 清空课表容器
-                scheduleContainer.style.display = 'none'; // 隐藏课表容器
-                leftContainer.style.display = 'none'; // 隐藏左侧容器
-                
-                // 触发容器重新布局
-                const containerRow = document.querySelector('.container-row');
-                if (containerRow) {
-                    containerRow.style.display = 'flex';
-                }
-                return;
-            }
-            
-            // 如果显示课表，恢复显示
-            scheduleContainer.style.display = ''; // 恢复显示
-            leftContainer.style.display = ''; // 恢复显示
-            
-            scheduleContainer.innerHTML = '<div class="column-header">' + ' 课表</div>'; // 添加带日期的标题
-
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                // 解析 formattedDate (YYYYMMDD 格式)
-                const year = parseInt(formattedDate.substring(0, 4), 10);
-                const month = parseInt(formattedDate.substring(4, 6), 10) - 1; // 月份从0开始
-                const day = parseInt(formattedDate.substring(6, 8), 10);
-                
-                // 创建日期对象
-                const selectedDate = new Date(year, month, day);
-                
-                // 获取星期几（0-6，0是周日）
-                const dayOfWeek = selectedDate.getDay();
-                
-                // 修改API请求，传递日期参数以获取当天课程
-                const response = await fetch(`/api/getCourses`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
-                    }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    const todayCourses = data.courses.filter(course => course.day === selectedDate.getDay()  && course.is_active);
-
-                    todayCourses.sort((a, b) => {
-                        const aStart = a.start_time.split(':').map(Number);
-                        const bStart = b.start_time.split(':').map(Number);
-                        return aStart[0] - bStart[0] || aStart[1] - bStart[1];
-                    });
-
-                    // 获取当前日期以判断是否为今天
-                    const now = new Date();
-                    const isToday = selectedDate.toDateString() === now.toDateString();
-
-                    // 过滤课程，如果为当天则过滤掉已结束的课程
-                    const displayCourses = isToday 
-                        ? todayCourses.filter(course => {
-                            // 解析课程结束时间
-                            const [endHour, endMinute] = course.end_time.split(':').map(Number);
-                            const endTime = new Date();
-                            endTime.setHours(endHour, endMinute, 0, 0);
-                            // 只显示结束时间未到的课程
-                            return endTime > now;
-                        })
-                        : todayCourses;
-
-                    displayCourses.forEach(course => {
-                        const card = document.createElement('div');
-                        card.className = 'card mb-3';
-
-                        card.innerHTML = `
-                            <div class="card-header">
-                                <div class="d-flex align-items-center">
-                                    <strong>${course.start_time} - ${course.end_time}</strong>
-                                    <span class="badge me-2 ms-2" style="background-color: ${course.course_color};">${course.course_code}</span>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-2">
-                                    <h5 class="mb-0">${course.course_name}</h5>
-                                </div>
-                                <div class="d-flex align-items-center">
-                                    <i class="bi bi-geo-alt-fill text me-1"></i>
-                                    <span class="me-3">${course.venue}</span>
-                                </div>
-                            </div>
-                        `;
-
-                        scheduleContainer.appendChild(card);
-                    });
-                    
-                    // 更新课表标题显示数量
-                    const scheduleTitle = scheduleContainer.querySelector('.column-header');
-                    scheduleTitle.innerHTML = `课表 <span class="badge bg-primary">${displayCourses.length}</span>`;
-                } else {
-                    alert(data.message || '加载课程失败');
-                }
-            } catch (error) {
-                console.error('Error loading today schedule:', error);
-                alert('加载课程失败，请重试');
-            }
-        }
-
-        // 新增：获取授课状态
-        async function getTeachingStatus() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    return '0'; // 默认不显示课表
-                }
-
-                const response = await fetch('/api/getTeachingStatus', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
-                    }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    return data.teaching;
-                } else {
-                    return '0'; // 默认不显示课表
-                }
-            } catch (error) {
-                console.error('Error fetching teaching status:', error);
-                return '0'; // 默认不显示课表
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadTodaySchedule();
-        });
-
-        initializePage();
-    }
-        // 新增：读取自动刷新时间的 Cookie
-        function getCookie(name) {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [key, value] = cookie.split('=');
-                if (key === name) {
-                    return decodeURIComponent(value);
-                }
-            }
-            return '0'; // 默认值为 0
-        }
-        document.addEventListener('DOMContentLoaded', loadContent);
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const refreshInterval = parseInt(getCookie('refreshInterval'), 10);
-            const countdownElement = document.createElement('div');
-            countdownElement.style.fontSize = '0.8rem';
-            countdownElement.style.color = '#6c757d';
-            countdownElement.style.marginTop = '5px';
-            countdownElement.textContent = refreshInterval > 0 ? `刷新倒计时：${refreshInterval}秒` : '';
-
-            const footerLinks = document.getElementById('footerLinks');
-            footerLinks.appendChild(countdownElement);
-
-            if (refreshInterval > 0) {
-                let countdown = refreshInterval;
-
-                const intervalId = setInterval(() => {
-                    countdown -= 1;
-                    if (countdown <= 0) {
-                        location.reload();
-                    } else {
-                        countdownElement.textContent = `刷新倒计时：${countdown}秒`;
-                    }
-                }, 1000);
-            }
-        });
-
-        // 新增：存储所有续费分类的变量
-        let allRenewalCategories = [];
-
-        // 新增：获取所有续费分类
-        async function fetchRenewalCategories() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const response = await fetch('/api/getAllRenewalCategories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    allRenewalCategories = data.data; // 存储所有续费分类
-                } else {
-                    console.error(data.message || '加载续费分类失败');
-                }
-            } catch (error) {
-                console.error('Error fetching renewal categories:', error);
-                alert('加载续费分类失败，请重试');
-            }
-        }
-
-        // 新增：渲染续费项目
-        function renderRenewals(renewals) {
-            const renewalContainer = document.getElementById('renewalContainer');
-            renewalContainer.innerHTML = ''; // 清空容器
-
-            let displayedRenewals = 0; // 记录实际显示的续费项目数量
-
-            renewals.forEach(renewal => {
-                // 解析到期日期
-                const expiryDate = new Date(renewal.expiry_date);
-                // 计算提醒日期（到期日 - 提醒天数）
-                const reminderDate = new Date(expiryDate);
-                reminderDate.setDate(expiryDate.getDate() - renewal.reminder_days);
-                
-                // 比较提醒日期是否小于等于当前显示日期
-                const displayDate = new Date(formattedDate.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
-                
-                // 只有当提醒日期 <= 显示日期时才显示
-                if (reminderDate <= displayDate) {
-                    displayedRenewals++; // 增加计数
-                    
-                    const card = document.createElement('div');
-                    card.className = 'card mb-3';
-
-                    // 获取分类信息
-                    const category = allRenewalCategories.find(c => c.id === renewal.category_id);
-                    const categoryBadge = category ? 
-                        `<span class="badge me-2" style="background-color: ${category.color};">${category.name}</span>` : 
-                        '<span class="badge me-2">未知分类</span>';
-
-                    // 格式化到期日期
-                    const formattedExpiry = expiryDate.toLocaleDateString();
-
-                    card.innerHTML = `
-                        <div class="card-header">
-                            <div class="d-flex align-items-center">
-                                ${categoryBadge}
-                                <h5 class="ms-2">${renewal.name}</h5>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-calendar-date" style="margin-right:4px"></i>
-                                <small>${formattedExpiry}</small>
-                            </div>
-                        </div>
-                    `;
-                    renewalContainer.appendChild(card);
-                }
-            });
-            
-            // 更新续费标题显示数量
-            const renewalTitle = document.getElementById('renewalTitle');
-            renewalTitle.innerHTML = `续费 <span class="badge bg-primary">${displayedRenewals}</span>`;
-        }
-
-        // 新增：获取当天续费项目
-        async function fetchTodayRenewals() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const response = await fetch('/api/getAllRenewals', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    renderRenewals(data.data);
-                } else {
-                    console.error(data.message || '加载续费项目失败');
-                }
-            } catch (error) {
-                console.error('Error fetching today\'s renewals:', error);
-                alert('加载续费项目失败，请重试');
-            }
-        }
-
-        // 新增：获取所有项目
-        async function fetchProjects() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const response = await fetch('/api/getProjects', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
-                    }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    return data.projects;
-                } else {
-                    console.error(data.message || '加载项目失败');
-                    return [];
-                }
-            } catch (error) {
-                console.error('Error fetching projects:', error);
-                return [];
-            }
-        }
-
-        // 新增：获取指定日期的项目参与记录
-        async function fetchProjectRecordsForDate(date) {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    return [];
-                }
-
-                // 获取所有项目
-                const projects = await fetchProjects();
-                
-                // 获取每个项目的参与记录
-                const projectParticipation = {};
-                for (const project of projects) {
-                    const response = await fetch(`/api/getProjectRecords/${project.id}`, {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'session': session
+                // 获取session
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') {
+                            return decodeURIComponent(value);
                         }
-                    });
+                    }
+                    return null;
+                };
 
-                    if (response.ok) {
+                // 检查授权
+                const checkAuth = async () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return false;
+                    }
+                    return true;
+                };
+
+                // 加载分类
+                const loadCategories = async () => {
+                    const session = getSession();
+                    try {
+                        const response = await fetch('/api/getCategories', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
                         const data = await response.json();
                         if (data.success) {
-                            // 检查是否有在指定日期的参与记录
-                            const hasParticipationOnDate = data.records.some(record => {
-                                const recordDate = record.timestamp.split(' ')[0]; // YYYY-MM-DD
-                                return recordDate === date;
-                            });
-                            projectParticipation[project.id] = hasParticipationOnDate;
+                            categories.value = data.categories;
                         }
+                    } catch (error) {
+                        console.error('Error loading categories:', error);
                     }
-                }
-                
-                return projectParticipation;
-            } catch (error) {
-                console.error('Error fetching project records:', error);
-                return {};
+                };
+
+                // 加载待办事项
+                const loadItems = async () => {
+                    const session = getSession();
+                    try {
+                        const response = await fetch('/api/getItems', {
+                            method: 'GET',
+                            headers: { 'Session': session }
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            const dateStr = formattedDate.value;
+                            items.value = data.items.filter(item => {
+                                if (item.status === 'done') return false;
+                                return item.deadline === dateStr || item.planned_time?.startsWith(dateStr);
+                            });
+                        } else if (response.status === 401) {
+                            window.location.href = '/login.html';
+                        }
+                    } catch (error) {
+                        console.error('Error loading items:', error);
+                        ElMessage.error('加载待办事项失败');
+                    }
+                };
+
+                // 加载周期任务
+                const loadCycles = async () => {
+                    const session = getSession();
+                    try {
+                        const dateStr = formattedDate.value.replace(/-/g, '');
+                        const response = await fetch('/api/getTodayCycles', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session, date: dateStr })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            cycles.value = data.cycles || [];
+                        }
+                    } catch (error) {
+                        console.error('Error loading cycles:', error);
+                    }
+                };
+
+                // 加载续订提醒
+                const loadRenewals = async () => {
+                    const session = getSession();
+                    try {
+                        const response = await fetch('/api/getTodayRenewals', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            renewals.value = data.renewals || [];
+                        }
+                    } catch (error) {
+                        console.error('Error loading renewals:', error);
+                    }
+                };
+
+                // 加载项目
+                const loadProjects = async () => {
+                    const session = getSession();
+                    try {
+                        const response = await fetch('/api/getProjects', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            projects.value = data.projects.filter(p => p.is_active) || [];
+                        }
+                    } catch (error) {
+                        console.error('Error loading projects:', error);
+                    }
+                };
+
+                // 加载所有数据
+                const loadAllData = async () => {
+                    await Promise.all([
+                        loadCategories(),
+                        loadItems(),
+                        loadCycles(),
+                        loadRenewals(),
+                        loadProjects()
+                    ]);
+                };
+
+                // 切换日期
+                const changeDate = (offset) => {
+                    const newDate = new Date(currentDate.value);
+                    newDate.setDate(newDate.getDate() + offset);
+                    currentDate.value = newDate;
+                    selectedDate.value = newDate;
+                    loadAllData();
+                };
+
+                // 显示日期选择器
+                const showDatePicker = () => {
+                    datePickerVisible.value = true;
+                };
+
+                // 日期改变
+                const onDateChange = (date) => {
+                    if (date) {
+                        currentDate.value = date;
+                        loadAllData();
+                        datePickerVisible.value = false;
+                    }
+                };
+
+                // 获取分类类型
+                const getCategoryType = (categoryId) => {
+                    const types = ['', 'success', 'info', 'warning', 'danger'];
+                    return types[categoryId % types.length];
+                };
+
+                // 页面跳转
+                const goToPage = (url) => {
+                    window.location.href = url;
+                };
+
+                // 跳转到项目详情
+                const goToProject = (projectId) => {
+                    window.location.href = `/view/project_detail.html?id=${projectId}`;
+                };
+
+                // 登出
+                const logout = async () => {
+                    try {
+                        await ElMessageBox.confirm('确定要退出登录吗？', '提示', {
+                            confirmButtonText: '确定',
+                            cancelButtonText: '取消',
+                            type: 'warning'
+                        });
+                        document.cookie = 'session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+                        window.location.href = '/login.html';
+                    } catch (error) {
+                        // 用户取消
+                    }
+                };
+
+                // 初始化
+                onMounted(async () => {
+                    if (await checkAuth()) {
+                        // 检查URL参数中的日期
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const dateParam = urlParams.get('date');
+                        if (dateParam) {
+                            const date = new Date(dateParam.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
+                            if (!isNaN(date.getTime())) {
+                                currentDate.value = date;
+                                selectedDate.value = date;
+                            }
+                        }
+                        await loadAllData();
+                    }
+                });
+
+                return {
+                    currentDate,
+                    formattedDate,
+                    dateDisplay,
+                    datePickerVisible,
+                    selectedDate,
+                    items,
+                    cycles,
+                    renewals,
+                    projects,
+                    changeDate,
+                    showDatePicker,
+                    onDateChange,
+                    getCategoryType,
+                    goToPage,
+                    goToProject,
+                    logout
+                };
             }
-        }
-
-        // 新增：渲染项目列表
-        function renderProjects(projects, projectParticipation) {
-            const projectContainer = document.getElementById('projectContainer');
-            projectContainer.innerHTML = ''; // 清空容器
-
-            projects.forEach(project => {
-                const card = document.createElement('div');
-                card.className = 'card mb-3';
-                
-                // 根据是否在当天参与过来设置背景色
-                const isParticipated = projectParticipation[project.id];
-                const backgroundColor = isParticipated ? '#cce5ff' : 'transparent'; // 浅蓝色或透明
-                
-                card.innerHTML = `
-                    <div class="card-body" style="background-color: ${backgroundColor};">
-                        <div class="d-flex align-items-center">
-                            <div class="project-color-indicator" style="background-color: ${project.color};"></div>
-                            <h5 class="mb-0">${project.name}</h5>
-                        </div>
-                        ${project.description ? `<p class="mt-2 mb-0">${project.description}</p>` : ''}
-                    </div>
-                `;
-                projectContainer.appendChild(card);
-            });
-            
-            // 更新项目标题显示数量
-            const projectTitle = document.getElementById('projectTitle');
-            projectTitle.innerHTML = `项目 <span class="badge bg-primary">${projects.length}</span>`;
-        }
-
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

@@ -4,54 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>关于</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
-
     <style>
-        .about-container {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            text-align: center;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 720px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .card { border-radius: 12px; }
+        a { color: inherit; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <!-- 添加返回按钮 -->
-                <h2 class="mb-4 d-flex align-items-center">
-                    <a href="/" class="text-decoration-none text-dark me-2">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    关于
-                </h2>
-                <!-- 使用表格显示数据 -->
-                <table class="table table-bordered table-striped">
-                    <tbody>
-                        <tr>
-                            <th scope="row">作者</th>
-                            <td>MikeWu597</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">版本号</th>
-                            <td>4.0.1</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">日期</th>
-                            <td>2025年12月6日</td>
-                        </tr>
-                        <tr>
-                            <th scope="row">GitHub</th>
-                            <td><a href="https://github.com/MikeWu597/MikeAgenda">https://github.com/MikeWu597/MikeAgenda</a></td>
-                        </tr>
-                    </tbody>
-                </table>
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
+                    <i class="bi bi-arrow-left"></i>
+                </el-button>
+                <div class="page-title">关于</div>
             </div>
+
+            <el-card class="card" shadow="hover">
+                <el-descriptions :column="1" border>
+                    <el-descriptions-item label="作者">MikeWu597</el-descriptions-item>
+                    <el-descriptions-item label="版本号">4.0.1</el-descriptions-item>
+                    <el-descriptions-item label="日期">2025年12月6日</el-descriptions-item>
+                    <el-descriptions-item label="GitHub">
+                        <el-link href="https://github.com/MikeWu597/MikeAgenda" target="_blank" type="primary">
+                            https://github.com/MikeWu597/MikeAgenda
+                        </el-link>
+                    </el-descriptions-item>
+                </el-descriptions>
+            </el-card>
         </div>
     </div>
 
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            setup() {
+                const goBack = () => {
+                    window.location.href = '/';
+                };
+                return { goBack };
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
 </body>
 </html>

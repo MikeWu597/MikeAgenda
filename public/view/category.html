@@ -4,374 +4,369 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>所有分类</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .category-card {
-            margin-bottom: 1rem;
-            cursor: pointer;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .category-details {
-            display: none;
-        }
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .muted { color: #909399; }
+        .color-dot { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <h2 class="mb-4">
-                    <a href="../dash.html" class="text-decoration-none text-dark me-2">
-                        <i class="bi bi-arrow-left"></i>
-                    </a>
-                    所有分类
-                </h2>
-                <div id="categoriesContainer"></div>
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
+                    <i class="bi bi-arrow-left"></i>
+                </el-button>
+                <div class="page-title">所有分类</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button type="primary" @click="openCreate">
+                        <i class="bi bi-plus-lg"></i>
+                        新建
+                    </el-button>
+                    <el-button plain @click="load" :loading="loading">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
+                </div>
             </div>
+
+            <el-card shadow="hover" style="border-radius: 12px;">
+                <el-empty v-if="!loading && categories.length === 0" description="暂无分类" />
+                <el-collapse v-else v-model="activeIds" @change="onCollapseChange">
+                    <el-collapse-item v-for="c in categories" :key="c.id" :name="String(c.id)">
+                        <template #title>
+                            <div style="display:flex; align-items:center; gap: 10px; width: 100%;">
+                                <span class="color-dot" :style="{ backgroundColor: c.color || '#dcdfe6' }"></span>
+                                <span style="font-weight: 700;">{{ c.name }}</span>
+                                <span class="muted" style="margin-left: 8px;">#{{ c.id }}</span>
+                                <span class="muted" style="margin-left: auto;">{{ (itemsByCategory[c.id]?.length ?? 0) }} 项</span>
+                            </div>
+                        </template>
+
+                        <div class="muted" style="margin-bottom: 10px;">{{ c.note || '无备注' }}</div>
+                        <div style="display:flex; gap: 8px; margin-bottom: 12px;">
+                            <el-button size="small" @click.stop="openEdit(c)">编辑</el-button>
+                            <el-button size="small" type="danger" @click.stop="remove(c)">删除</el-button>
+                        </div>
+
+                        <el-skeleton v-if="itemsLoading[c.id]" :rows="3" animated />
+                        <el-table v-else :data="itemsByCategory[c.id] || []" style="width: 100%" size="small" empty-text="该分类下暂无事项">
+                            <el-table-column prop="title" label="标题" min-width="180">
+                                <template #default="{ row }">
+                                    {{ row.title || row.name || '--' }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="备注" min-width="260">
+                                <template #default="{ row }">
+                                    <span class="muted">{{ row.description || '无备注' }}</span>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </el-collapse-item>
+                </el-collapse>
+            </el-card>
+
+            <el-dialog v-model="editVisible" :title="edit.id ? '编辑分类' : '新建分类'" width="520px">
+                <el-form ref="formRef" :model="edit" :rules="rules" label-width="90px">
+                    <el-form-item label="名称" prop="name">
+                        <el-input v-model="edit.name" clearable />
+                    </el-form-item>
+                    <el-form-item label="颜色" prop="color">
+                        <div style="display:flex; align-items:center; gap: 12px;">
+                            <el-color-picker v-model="edit.color" />
+                            <el-input v-model="edit.color" style="max-width: 180px;" placeholder="#RRGGBB" />
+                        </div>
+                    </el-form-item>
+                    <el-form-item label="备注">
+                        <el-input v-model="edit.note" type="textarea" :rows="3" />
+                    </el-form-item>
+                </el-form>
+                <template #footer>
+                    <el-button @click="editVisible=false">取消</el-button>
+                    <el-button type="primary" :loading="saving" @click="save">保存</el-button>
+                </template>
+            </el-dialog>
         </div>
     </div>
 
-    <!-- 添加编辑分类的模态框 -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">编辑分类</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="editForm">
-                        <input type="hidden" id="editCategoryId">
-                        <div class="mb-3">
-                            <label for="editName" class="form-label">名称</label>
-                            <input type="text" class="form-control" id="editName" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editColor" class="form-label">颜色</label>
-                            <input type="color" class="form-control" id="editColor" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="editNote" class="form-label">备注</label>
-                            <textarea class="form-control" id="editNote"></textarea>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveCategory">保存</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
 
-        // 根据分类 ID 获取该分类下的所有事项
-        async function fetchItemsByCategory(categoryId) {
-            try {
-                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
+        createApp({
+            setup() {
+                const loading = ref(true);
+                const saving = ref(false);
+                const categories = ref([]);
+                const activeIds = ref([]);
 
-                const sessionValue = session.split('=')[1];
-                const response = await fetch('/api/getItemsByCategory', {
-                    method: 'POST', // 修改: 将请求方式改为 POST
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: categoryId, session: sessionValue }) // 修改: 通过 POST 参数传递 session 和分类 ID
+                const itemsByCategory = reactive({});
+                const itemsLoading = reactive({});
+
+                const editVisible = ref(false);
+                const formRef = ref(null);
+                const edit = reactive({
+                    id: null,
+                    name: '',
+                    color: '#409eff',
+                    note: ''
                 });
 
-                const data = await response.json();
-                if (data.success) {
-                    return data.items;
-                } else if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                } else {
-                    alert(data.message || '加载事项失败');
-                }
-            } catch (error) {
-                console.error('Error fetching items by category:', error);
-                alert('加载事项失败，请重试');
-            }
-        }
+                const rules = {
+                    name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+                    color: [{ required: true, message: '请选择颜色', trigger: 'change' }]
+                };
 
-        // 获取单个分类
-        async function fetchCategory(categoryId) {
-            try {
-                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const sessionValue = session.split('=')[1];
-                const response = await fetch(`/api/getCategory/${categoryId}`, {
-                    method: 'GET',
-                    headers: { 'session': sessionValue }
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    return data.category;
-                } else if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                } else {
-                    alert(data.message || '获取分类失败');
-                }
-            } catch (error) {
-                console.error('Error fetching category:', error);
-                alert('获取分类失败，请重试');
-            }
-        }
-
-        // 修改: 将 GET 请求改为 POST 请求，并在请求体中添加 session 参数
-        async function fetchCategories() {
-            try {
-                const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const sessionValue = session.split('=')[1];
-                const response = await fetch('/api/getCategories', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session: sessionValue })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    renderCategories(data.categories);
-                } else if (response.status === 401) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                } else {
-                    alert(data.message || '加载分类失败');
-                }
-            } catch (error) {
-                console.error('Error fetching categories:', error);
-                alert('加载分类失败，请重试');
-            }
-        }
-
-        // 渲染分类列表
-        function renderCategories(categories) {
-            const container = document.getElementById('categoriesContainer');
-            container.innerHTML = ''; // 清空容器
-
-            categories.forEach(category => {
-                const card = document.createElement('div');
-                card.className = 'card category-card';
-                card.innerHTML = `
-                    <div class="card-header" style="background-color: ${category.color}; color: #fff;">
-                        <h5>${category.name}</h5>
-                        <small>${category.note}</small>
-                    </div>
-                    <div class="card-body category-details" style="display: none;">
-                        <button class="btn btn-primary edit-btn" data-id="${category.id}">编辑</button>
-                        <button class="btn btn-danger delete-btn" data-id="${category.id}">删除</button>
-                        <div class="mt-3">
-                            <h6>该分类下共有 <span id="itemCount-${category.id}">0</span> 个事项：</h6>
-                            <ul class="list-group" id="itemsList-${category.id}"></ul>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-
-            // 绑定事件
-            document.querySelectorAll('.category-card').forEach(card => {
-                card.addEventListener('click', async () => {
-                    const details = card.querySelector('.category-details');
-                    const categoryId = card.querySelector('.edit-btn').getAttribute('data-id');
-                    const itemsList = card.querySelector(`#itemsList-${categoryId}`);
-                    const itemCountElement = card.querySelector(`#itemCount-${categoryId}`);
-
-                    if (details.style.display === 'none') {
-                        try {
-                            // 修改: 将 GET 请求改为 POST 请求，并通过 POST 参数传递 session 和 categoryId
-                            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-                            if (!session) {
-                                alert('未授权，请重新登录');
-                                window.location.href = '/login.html';
-                                return;
-                            }
-
-                            const sessionValue = session.split('=')[1];
-                            const response = await fetch('/api/getItemsByCategory', {
-                                method: 'POST', // 修改: 请求方式改为 POST
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: categoryId, session: sessionValue }) // 修改: 通过 POST 参数传递 session 和 categoryId
-                            });
-
-                            const data = await response.json();
-                            if (data.success) {
-                                itemsList.innerHTML = ''; // 清空事项列表
-                                data.items.forEach(item => {
-                                    const listItem = document.createElement('li');
-                                    listItem.className = 'list-group-item';
-                                    listItem.innerHTML = `
-                                        <strong>${item.title}</strong>
-                                        <p>${item.description || '无备注'}</p>
-                                    `;
-                                    itemsList.appendChild(listItem);
-                                });
-                                // 更新事项计数
-                                itemCountElement.textContent = data.items.length;
-                            } else {
-                                alert(data.message || '加载事项失败');
-                            }
-                        } catch (error) {
-                            console.error('Error fetching items by category:', error);
-                            alert('加载事项失败，请重试');
-                        }
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
                     }
+                    return null;
+                };
 
-                    details.style.display = details.style.display === 'none' ? 'block' : 'none';
-                });
-            });
-
-            document.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const categoryId = btn.getAttribute('data-id');
-                    const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
+                const ensureAuth = () => {
+                    const session = getSession();
                     if (!session) {
-                        alert('未授权，请重新登录');
                         window.location.href = '/login.html';
-                        return;
+                        return null;
                     }
+                    return session;
+                };
 
-                    const sessionValue = session.split('=')[1];
-                    fetch(`/api/getCategory/${categoryId}`, {
-                        method: 'GET',
-                        headers: { 'session': sessionValue }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const category = data.category;
-                            document.getElementById('editCategoryId').value = category.id;
-                            document.getElementById('editName').value = category.name;
-                            document.getElementById('editColor').value = category.color;
-                            document.getElementById('editNote').value = category.note;
-                            new bootstrap.Modal(document.getElementById('editModal')).show();
-                        } else {
-                            alert('获取分类信息失败');
-                        }
-                    });
-                });
-            });
-
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const categoryId = btn.getAttribute('data-id');
-                    if (confirm('确定要删除这个分类吗？')) {
-                        const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-                        if (!session) {
-                            alert('未授权，请重新登录');
+                const load = async () => {
+                    const session = ensureAuth();
+                    if (!session) return;
+                    loading.value = true;
+                    try {
+                        const res = await fetch('/api/getCategories', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ session })
+                        });
+                        if (res.status === 401) {
                             window.location.href = '/login.html';
                             return;
                         }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载分类失败');
+                        categories.value = Array.isArray(data.categories) ? data.categories : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载分类失败');
+                    } finally {
+                        loading.value = false;
+                    }
+                };
 
-                        const sessionValue = session.split('=')[1];
-                        fetch('/api/deleteCategory', {
+                const loadItems = async (categoryId) => {
+                    const id = String(categoryId);
+                    if (itemsByCategory[id]) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+                    itemsLoading[id] = true;
+                    try {
+                        const res = await fetch('/api/getItemsByCategory', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: categoryId, session: sessionValue })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                alert('分类已删除');
-                                fetchCategories();
-                            } else {
-                                alert(data.message || '删除分类失败');
-                            }
+                            body: JSON.stringify({ id: id, session })
                         });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载事项失败');
+                        itemsByCategory[id] = Array.isArray(data.items) ? data.items : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载事项失败');
+                        itemsByCategory[id] = [];
+                    } finally {
+                        itemsLoading[id] = false;
                     }
-                });
-            });
-        }
+                };
 
-        // 保存分类时添加 session 参数
-        document.getElementById('saveCategory').addEventListener('click', () => {
-            const categoryId = document.getElementById('editCategoryId').value;
-            const name = document.getElementById('editName').value;
-            const color = document.getElementById('editColor').value;
-            const note = document.getElementById('editNote').value;
+                const onCollapseChange = async (val) => {
+                    const ids = Array.isArray(val) ? val : [val];
+                    for (const id of ids) {
+                        if (id != null && id !== '') await loadItems(id);
+                    }
+                };
 
-            const session = document.cookie.split(';').find(c => c.trim().startsWith('session='));
-            if (!session) {
-                alert('未授权，请重新登录');
-                window.location.href = '/login.html';
-                return;
-            }
+                const openEdit = async (c) => {
+                    const session = ensureAuth();
+                    if (!session) return;
+                    try {
+                        const res = await fetch(`/api/getCategory/${c.id}`, {
+                            method: 'GET',
+                            headers: { 'session': session }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '获取分类信息失败');
+                        edit.id = data.category?.id ?? c.id;
+                        edit.name = data.category?.name ?? c.name ?? '';
+                        edit.color = data.category?.color ?? c.color ?? '#409eff';
+                        edit.note = data.category?.note ?? c.note ?? '';
+                        editVisible.value = true;
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '获取分类信息失败');
+                    }
+                };
 
-            const sessionValue = session.split('=')[1];
+                const openCreate = () => {
+                    edit.id = null;
+                    edit.name = '';
+                    edit.color = '#409eff';
+                    edit.note = '';
+                    editVisible.value = true;
+                };
 
-            if (categoryId) {
-                // 编辑分类
-                fetch(`/api/updateCategory/${categoryId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, color, note, session: sessionValue })
-                })
-                .then(response => {
-                    if (response.status === 401) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
+                const save = async () => {
+                    if (!formRef.value) return;
+                    await formRef.value.validate(async (valid) => {
+                        if (!valid) return;
+                        const session = ensureAuth();
+                        if (!session) return;
+
+                        saving.value = true;
+                        try {
+                            if (edit.id) {
+                                const res = await fetch(`/api/updateCategory/${edit.id}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        name: edit.name,
+                                        color: edit.color,
+                                        note: edit.note,
+                                        session
+                                    })
+                                });
+                                if (res.status === 401) {
+                                    window.location.href = '/login.html';
+                                    return;
+                                }
+                                const data = await res.json();
+                                if (!data.success) throw new Error(data.message || '更新分类失败');
+                                ElMessage.success('分类已更新');
+                            } else {
+                                const res = await fetch('/api/createCategory', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        name: edit.name,
+                                        color: edit.color,
+                                        note: edit.note,
+                                        session
+                                    })
+                                });
+                                if (res.status === 401) {
+                                    window.location.href = '/login.html';
+                                    return;
+                                }
+                                const data = await res.json();
+                                if (!data.success) throw new Error(data.message || '创建分类失败');
+                                ElMessage.success('分类已创建');
+                            }
+
+                            editVisible.value = false;
+                            activeIds.value = [];
+                            for (const key of Object.keys(itemsByCategory)) delete itemsByCategory[key];
+                            await load();
+                        } catch (e) {
+                            console.error(e);
+                            ElMessage.error(e?.message || '保存失败');
+                        } finally {
+                            saving.value = false;
+                        }
+                    });
+                };
+
+                const remove = async (c) => {
+                    const session = ensureAuth();
+                    if (!session) return;
+                    try {
+                        await ElMessageBox.confirm('确定要删除这个分类吗？', '确认删除', {
+                            type: 'warning',
+                            confirmButtonText: '删除',
+                            cancelButtonText: '取消'
+                        });
+                    } catch {
                         return;
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success) {
-                        alert('分类已更新');
-                        new bootstrap.Modal(document.getElementById('editModal')).hide();
-                        fetchCategories();
-                    } else {
-                        alert('更新分类失败');
-                    }
-                });
-            } else {
-                // 创建分类
-                fetch('/api/createCategory', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, color, note, session: sessionValue })
-                })
-                .then(response => {
-                    if (response.status === 401) {
-                        alert('未授权，请重新登录');
-                        window.location.href = '/login.html';
-                        return;
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.success){
-                        alert('分类已创建');
-                        new bootstrap.Modal(document.getElementById('editModal')).hide();
-                        fetchCategories();
-                    } else {
-                        alert('创建分类失败');
-                    }
-                });
-            }
-        });
 
-        // 页面加载时获取分类
-        document.addEventListener('DOMContentLoaded', fetchCategories);
+                    try {
+                        const res = await fetch('/api/deleteCategory', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: String(c.id), session })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '删除分类失败');
+                        ElMessage.success('分类已删除');
+                        activeIds.value = [];
+                        for (const key of Object.keys(itemsByCategory)) delete itemsByCategory[key];
+                        await load();
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '删除分类失败');
+                    }
+                };
+
+                const goBack = () => {
+                    window.location.href = '/dash.html';
+                };
+
+                onMounted(load);
+
+                return {
+                    loading,
+                    categories,
+                    activeIds,
+                    itemsByCategory,
+                    itemsLoading,
+                    editVisible,
+                    formRef,
+                    edit,
+                    rules,
+                    saving,
+                    load,
+                    onCollapseChange,
+                    openEdit,
+                    openCreate,
+                    save,
+                    remove,
+                    goBack
+                };
+            }
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>

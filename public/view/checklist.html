@@ -4,327 +4,316 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>检查表详情</title>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/element-plus/index.css" rel="stylesheet">
     <link href="/font/bootstrap-icons.css" rel="stylesheet">
     <style>
-        .checklist-item {
-            transition: all 0.3s ease;
+        body { margin: 0; padding: 0; background: #f5f7fa; }
+        #app { min-height: 100vh; padding: 20px; }
+        .page-container { max-width: 980px; margin: 0 auto; }
+        .page-header {
+            background: #fff;
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
-        .checklist-item.checked .form-check-label {
+        .page-title { font-size: 20px; font-weight: 700; color: #303133; }
+        .muted { color: #909399; }
+        .item-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .item-name.checked {
             text-decoration: line-through;
-            color: #6c757d;
+            color: #909399;
         }
-        /* Add light blue background for checked items */
-        .checklist-item.checked {
-            background-color: #e3f2fd;
+        .item-card.checked {
+            background: #ecf5ff;
         }
-        /* Style for the completion checkmark */
         .completion-checkmark {
-            font-size: 5rem;
-            color: #007bff;
+            font-size: 72px;
+            color: #409eff;
             text-align: center;
-            padding: 3rem;
+            padding: 28px 0 10px;
         }
     </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2 class="d-flex align-items-center">
-                <a href="/view/checklists.html" class="text-decoration-none text-dark me-2">
+    <div id="app">
+        <div class="page-container">
+            <div class="page-header">
+                <el-button circle @click="goBack" aria-label="返回">
                     <i class="bi bi-arrow-left"></i>
-                </a>
-                <span id="checklistName">检查表</span>
-            </h2>
-            <button id="clearAllBtn" class="btn btn-outline-secondary btn-sm" style="display: none;">
-                清空所有
-            </button>
-        </div>
+                </el-button>
+                <div class="page-title">{{ checklistName || '检查表' }}</div>
+                <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button plain @click="reload" :loading="loading">
+                        <i class="bi bi-arrow-repeat"></i>
+                        刷新
+                    </el-button>
+                    <el-button v-if="showClearAll" plain @click="clearAll" :loading="savingAny">
+                        清空所有
+                    </el-button>
+                </div>
+            </div>
 
-        <div id="itemsContainer">
-            <!-- Checklist items will be loaded here -->
+            <el-card shadow="hover" style="border-radius: 12px;" v-loading="loading">
+                <template v-if="!loading && allCompleted">
+                    <div class="completion-checkmark">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                    <div style="text-align:center; padding-bottom: 18px;">
+                        <el-button type="primary" plain @click="resetChecklist" :loading="savingAny">重新开始检查表</el-button>
+                    </div>
+                </template>
+
+                <el-empty v-else-if="!loading && items.length === 0" description="该检查表暂无检查项" />
+
+                <div v-else>
+                    <div v-for="it in items" :key="it.id" style="margin-bottom: 10px;">
+                        <el-card class="item-card" :class="{ checked: !!it.checked }" shadow="never" style="border-radius: 12px;">
+                            <div class="item-row">
+                                <div style="display:flex; align-items:center; gap: 12px; min-width: 0;">
+                                    <el-checkbox v-model="it.checked" :disabled="savingIds.has(it.id)" @change="(val) => onToggle(it, val)"></el-checkbox>
+                                    <div class="item-name" :class="{ checked: !!it.checked }" style="font-weight: 600; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                        {{ it.name }}
+                                    </div>
+                                </div>
+                                <el-tag v-if="savingIds.has(it.id)" type="info">保存中</el-tag>
+                            </div>
+                        </el-card>
+                    </div>
+                    <div class="muted" style="text-align:center; padding-top: 6px;">勾选全部后将显示完成提示</div>
+                </div>
+            </el-card>
         </div>
     </div>
 
-    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script src="/vendor/vue/vue.global.prod.js"></script>
+    <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        const getSessionFromCookie = () => {
-            const cookies = document.cookie.split('; ');
-            for (const cookie of cookies) {
-                const [name, value] = cookie.split('=');
-                if (name === 'session') {
-                    return decodeURIComponent(value);
-                }
-            }
-            return null;
-        };
+        const { createApp, ref, computed, onMounted } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
 
-        // Get checklist ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const checklistId = urlParams.get('id');
+        createApp({
+            setup() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const checklistId = urlParams.get('id');
 
-        // Load checklist details
-        async function loadChecklist() {
-            if (!checklistId) {
-                alert('缺少检查表 ID');
-                window.location.href = '/view/checklists.html';
-                return;
-            }
+                const loading = ref(true);
+                const checklistName = ref('');
+                const items = ref([]);
 
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
+                const savingIds = ref(new Set());
+                const savingAny = computed(() => savingIds.value.size > 0);
 
-                const response = await fetch(`/api/getChecklist/${checklistId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
+                const getSession = () => {
+                    const cookies = document.cookie.split(';');
+                    for (const cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === 'session') return decodeURIComponent(value);
                     }
-                });
+                    return null;
+                };
 
-                const data = await response.json();
-                if (data.success) {
-                    document.getElementById('checklistName').textContent = data.checklist.name;
-                    renderItems(data.checklist.items);
-                } else {
-                    alert(data.message || '加载检查表详情失败');
-                }
-            } catch (error) {
-                console.error('Error loading checklist:', error);
-                alert('加载检查表详情失败，请重试');
-            }
-        }
-
-        // Render checklist items
-        function renderItems(items) {
-            const container = document.getElementById('itemsContainer');
-            container.innerHTML = '';
-
-            // Check if all items are completed
-            const allCompleted = items.length > 0 && items.every(item => item.checked);
-            
-            if (allCompleted) {
-                // Display a large checkmark when all items are completed
-                container.innerHTML = `
-                    <div class="completion-checkmark">
-                        <i class="bi bi-check-circle-fill"></i>
-                    </div>
-                    <div class="text-center">
-                        <button id="resetChecklistBtn" class="btn btn-outline-primary mt-3">
-                            重新开始检查表
-                        </button>
-                    </div>
-                `;
-                document.getElementById('clearAllBtn').style.display = 'none';
-                document.getElementById('resetChecklistBtn').addEventListener('click', resetChecklist);
-
-                return;
-            }
-
-            if (items.length === 0) {
-                container.innerHTML = `
-                    <div class="alert alert-info text-center">
-                        该检查表暂无检查项
-                    </div>
-                `;
-                document.getElementById('clearAllBtn').style.display = 'none';
-                return;
-            }
-
-            // Show clear all button if there are checked items
-            const hasCheckedItems = items.some(item => item.checked);
-            document.getElementById('clearAllBtn').style.display = hasCheckedItems ? 'block' : 'none';
-
-            items.forEach(item => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = `checklist-item card mb-3 ${item.checked ? 'checked' : ''}`;
-                itemDiv.innerHTML = `
-                    <div class="card-body">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="item${item.id}" 
-                                ${item.checked ? 'checked' : ''}>
-                            <label class="form-check-label" for="item${item.id}">
-                                ${item.name}
-                            </label>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(itemDiv);
-
-                // Add event listener for checkbox
-                const checkbox = itemDiv.querySelector(`#item${item.id}`);
-                checkbox.addEventListener('change', () => {
-                    updateItemStatus(item.id, checkbox.checked);
-                    itemDiv.classList.toggle('checked', checkbox.checked);
-                    
-                    // Update clear all button visibility
-                    updateClearAllButtonVisibility();
-                    
-                    // Check if all items are now completed
-                    setTimeout(() => {
-                        checkAllItemsCompleted();
-                    }, 100);
-                });
-            });
-        }
-
-        // Check if all items are completed and update display accordingly
-        function checkAllItemsCompleted() {
-            const checkboxes = document.querySelectorAll('.form-check-input');
-            if (checkboxes.length > 0) {
-                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-                if (allChecked) {
-                    renderCompletionMessage();
-                }
-            }
-        }
-
-        // Render the completion message with a large checkmark and reset button
-        function renderCompletionMessage() {
-            const container = document.getElementById('itemsContainer');
-            container.innerHTML = `
-                <div class="text-center p-4">
-                    <div class="completion-checkmark">
-                        <i class="bi bi-check-circle-fill"></i>
-                    </div>
-                    <div class="text-center">
-                        <button id="resetChecklistBtn" class="btn btn-outline-primary mt-3">
-                            重新开始检查表
-                        </button>
-                    </div>
-                </div>
-            `;
-            document.getElementById('clearAllBtn').style.display = 'none';
-            
-            // Add event listener to reset button
-            document.getElementById('resetChecklistBtn').addEventListener('click', resetChecklist);
-        }
-
-        // Reset the checklist by unchecking all items
-        async function resetChecklist() {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                // Get all items from the checklist
-                const response = await fetch(`/api/getChecklist/${checklistId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
+                const ensureAuth = () => {
+                    const session = getSession();
+                    if (!session) {
+                        window.location.href = '/login.html';
+                        return null;
                     }
-                });
+                    return session;
+                };
 
-                const data = await response.json();
-                if (data.success) {
-                    // Create array of promises to uncheck all items
-                    const updatePromises = data.checklist.items.map(item => {
-                        return updateItemStatus(item.id, false);
+                const ensureChecklistId = () => {
+                    if (!checklistId) {
+                        ElMessage.error('缺少检查表 ID');
+                        window.location.href = '/view/checklists.html';
+                        return false;
+                    }
+                    return true;
+                };
+
+                const goBack = () => {
+                    window.location.href = '/view/checklists.html';
+                };
+
+                const allCompleted = computed(() => items.value.length > 0 && items.value.every(i => !!i.checked));
+                const hasCheckedItems = computed(() => items.value.some(i => !!i.checked));
+                const showClearAll = computed(() => hasCheckedItems.value && !allCompleted.value);
+
+                const reload = async () => {
+                    if (!ensureChecklistId()) return;
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    loading.value = true;
+                    try {
+                        const res = await fetch(`/api/getChecklist/${checklistId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '加载检查表详情失败');
+                        checklistName.value = data.checklist?.name || '检查表';
+                        items.value = Array.isArray(data.checklist?.items) ? data.checklist.items.map(x => ({ ...x })) : [];
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '加载检查表详情失败');
+                        items.value = [];
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const updateItemStatus = async (itemId, checked) => {
+                    const session = ensureAuth();
+                    if (!session) return { ok: false };
+
+                    try {
+                        const res = await fetch('/api/updateChecklistItemStatus', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            },
+                            body: JSON.stringify({
+                                session: session,
+                                id: itemId,
+                                checked: checked
+                            })
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return { ok: false };
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '更新检查项状态失败');
+                        return { ok: true };
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '更新检查项状态失败');
+                        return { ok: false };
+                    }
+                };
+
+                const onToggle = async (item, val) => {
+                    const prev = !val;
+                    savingIds.value.add(item.id);
+                    savingIds.value = new Set(savingIds.value);
+                    const { ok } = await updateItemStatus(item.id, !!val);
+                    if (!ok) {
+                        item.checked = prev;
+                    }
+                    savingIds.value.delete(item.id);
+                    savingIds.value = new Set(savingIds.value);
+                };
+
+                const clearAll = async () => {
+                    const checkedItems = items.value.filter(i => !!i.checked);
+                    if (checkedItems.length === 0) return;
+
+                    try {
+                        await ElMessageBox.confirm(`确定要清空 ${checkedItems.length} 个已勾选项吗？`, '确认', {
+                            type: 'warning',
+                            confirmButtonText: '清空',
+                            cancelButtonText: '取消'
+                        });
+                    } catch {
+                        return;
+                    }
+
+                    const updates = checkedItems.map(async (it) => {
+                        const prev = it.checked;
+                        it.checked = false;
+                        savingIds.value.add(it.id);
+                        savingIds.value = new Set(savingIds.value);
+                        const { ok } = await updateItemStatus(it.id, false);
+                        if (!ok) it.checked = prev;
+                        savingIds.value.delete(it.id);
+                        savingIds.value = new Set(savingIds.value);
                     });
-                    
-                    // Wait for all updates to complete
-                    await Promise.all(updatePromises);
-                    
-                    // Reload the checklist to show all items unchecked
-                    loadChecklist();
-                } else {
-                    alert(data.message || '重置检查表失败');
-                }
-            } catch (error) {
-                console.error('Error resetting checklist:', error);
-                alert('重置检查表失败，请重试');
+                    await Promise.all(updates);
+                };
+
+                const resetChecklist = async () => {
+                    if (!ensureChecklistId()) return;
+
+                    try {
+                        await ElMessageBox.confirm('确定要重新开始检查表（取消所有勾选）吗？', '确认', {
+                            type: 'warning',
+                            confirmButtonText: '重置',
+                            cancelButtonText: '取消'
+                        });
+                    } catch {
+                        return;
+                    }
+
+                    // 复用旧实现：先拉取清单，再逐个更新
+                    const session = ensureAuth();
+                    if (!session) return;
+
+                    try {
+                        const res = await fetch(`/api/getChecklist/${checklistId}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'session': session
+                            }
+                        });
+                        if (res.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await res.json();
+                        if (!data.success) throw new Error(data.message || '重置检查表失败');
+                        const serverItems = Array.isArray(data.checklist?.items) ? data.checklist.items : [];
+
+                        const updates = serverItems.map(async (it) => {
+                            savingIds.value.add(it.id);
+                            savingIds.value = new Set(savingIds.value);
+                            await updateItemStatus(it.id, false);
+                            savingIds.value.delete(it.id);
+                            savingIds.value = new Set(savingIds.value);
+                        });
+                        await Promise.all(updates);
+                        await reload();
+                    } catch (e) {
+                        console.error(e);
+                        ElMessage.error(e?.message || '重置检查表失败');
+                    }
+                };
+
+                onMounted(reload);
+
+                return {
+                    loading,
+                    checklistName,
+                    items,
+                    savingIds,
+                    savingAny,
+                    allCompleted,
+                    showClearAll,
+                    goBack,
+                    reload,
+                    onToggle,
+                    clearAll,
+                    resetChecklist
+                };
             }
-        }
-
-        // Update clear all button visibility based on checked items
-        function updateClearAllButtonVisibility() {
-            const checkboxes = document.querySelectorAll('.form-check-input');
-            const hasCheckedItems = Array.from(checkboxes).some(cb => cb.checked);
-            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-            
-            // Only show clear button if there are checked items but not all items are checked
-            document.getElementById('clearAllBtn').style.display = (hasCheckedItems && !allChecked) ? 'block' : 'none';
-        }
-
-        // Update item status
-        async function updateItemStatus(itemId, checked) {
-            try {
-                const session = getSessionFromCookie();
-                if (!session) {
-                    alert('未授权，请重新登录');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const response = await fetch('/api/updateChecklistItemStatus', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'session': session
-                    },
-                    body: JSON.stringify({ 
-                        session: session,
-                        id: itemId,
-                        checked: checked
-                    })
-                });
-
-                const data = await response.json();
-                if (!data.success) {
-                    alert(data.message || '更新检查项状态失败');
-                }
-            } catch (error) {
-                console.error('Error updating item status:', error);
-                alert('更新检查项状态失败，请重试');
-            }
-        }
-
-        // Clear all checked items
-        async function clearAllItems() {
-            const checkboxes = document.querySelectorAll('.form-check-input:checked');
-            
-            // Create array of promises for all updates
-            const updatePromises = Array.from(checkboxes).map(checkbox => {
-                const itemId = checkbox.id.replace('item', '');
-                checkbox.checked = false;
-                const itemDiv = checkbox.closest('.checklist-item');
-                if (itemDiv) {
-                    itemDiv.classList.remove('checked');
-                }
-                return updateItemStatus(itemId, false);
-            });
-            
-            try {
-                // Wait for all updates to complete
-                await Promise.all(updatePromises);
-                
-                // Hide the clear all button since no items are checked now
-                document.getElementById('clearAllBtn').style.display = 'none';
-                
-                // Reload the checklist to show all items again
-                loadChecklist();
-            } catch (error) {
-                console.error('Error clearing all items:', error);
-                alert('清空所有项目失败，请重试');
-            }
-        }
-
-        // Initialize page
-        document.addEventListener('DOMContentLoaded', () => {
-            loadChecklist();
-            
-            // Add event listener to clear all button
-            document.getElementById('clearAllBtn').addEventListener('click', clearAllItems);
-        });
+        }).use(ElementPlus).mount('#app');
     </script>
 </body>
 </html>
