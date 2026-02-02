@@ -328,9 +328,9 @@
                         </el-button>
                     </div>
                     <div v-for="cycle in cycles" :key="cycle.id" class="item-card" @click="goToPage('/view/cycle.html')">
-                        <div class="item-title">{{ cycle.title }}</div>
+                        <div class="item-title">{{ cycle.name || cycle.title || '' }}</div>
                         <div class="item-meta">
-                            <span><i class="bi bi-calendar-event"></i> {{ cycle.frequency }}</span>
+                            <span><i class="bi bi-calendar-event"></i> {{ cycle._formattedCycle || '' }}</span>
                         </div>
                     </div>
                 </div>
@@ -492,6 +492,27 @@
                     }
                 };
 
+                const parseCycle = (cycleRow) => {
+                    const parsed = safeJsonParse(cycleRow && cycleRow.cycle, {});
+                    const cycleType = String(parsed && parsed.cycle ? parsed.cycle : '');
+                    const configObj = safeJsonParse(parsed && parsed.config, {});
+                    return { cycleType, configObj };
+                };
+
+                const formatCycleConfig = (cycleType, configObj) => {
+                    if (cycleType === 'weekly') {
+                        const daysOfWeek = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+                        const raw = String(configObj && configObj.day != null ? configObj.day : '');
+                        const first = raw.split(',')[0];
+                        const idx = Number(first);
+                        return `每周 ${daysOfWeek[idx] || first}`;
+                    }
+                    if (cycleType === 'monthly') return `每月第 ${configObj && configObj.day} 天`;
+                    if (cycleType === 'monthly_last') return `每月倒数第 ${configObj && configObj.day} 天`;
+                    if (cycleType === 'daily') return '每天';
+                    return '';
+                };
+
                 // 加载分类
                 const loadCategories = async () => {
                     const session = getSession();
@@ -564,7 +585,14 @@
                         }
                         const data = await response.json();
                         if (data.success) {
-                            cycles.value = data.cycles || [];
+                            const rows = Array.isArray(data.cycles) ? data.cycles : [];
+                            cycles.value = rows.map((r) => {
+                                const { cycleType, configObj } = parseCycle(r);
+                                return {
+                                    ...r,
+                                    _formattedCycle: formatCycleConfig(cycleType, configObj)
+                                };
+                            });
                         }
                     } catch (error) {
                         console.error('Error loading cycles:', error);
