@@ -177,7 +177,7 @@
             </div>
 
             <el-card shadow="hover" style="border-radius: 12px;" v-loading="loadingRecords">
-                <el-empty v-if="!loadingRecords && records.length === 0" description="暂无参与记录" />
+                <el-empty v-if="!loadingRecords && records.length === 0" description="暂无参与记录"></el-empty>
 
                 <div v-if="records.length > 0" class="months-container">
                     <div v-for="m in months" :key="m.key" class="month-card">
@@ -321,12 +321,25 @@
                     });
                 };
 
+                const pad2 = (n) => String(n).padStart(2, '0');
+
+                const toDateStr = (timestamp) => {
+                    const d = new Date(timestamp);
+                    if (!Number.isNaN(d.getTime())) {
+                        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+                    }
+
+                    const s = String(timestamp || '');
+                    const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+                    return m ? m[1] : null;
+                };
+
                 const buildRecordsByDate = (rows) => {
                     const map = {};
                     let firstRecordDate = null;
 
                     for (const r of rows) {
-                        const date = String(r.timestamp || '').split(' ')[0];
+                        const date = toDateStr(r.timestamp);
                         if (!date) continue;
                         if (!map[date]) map[date] = [];
                         map[date].push(r);

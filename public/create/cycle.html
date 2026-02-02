@@ -37,51 +37,51 @@
             <el-card shadow="hover" style="border-radius: 12px;">
                 <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
                     <el-form-item label="名称" prop="name">
-                        <el-input v-model="form.name" placeholder="请输入名称" clearable />
+                        <el-input v-model="form.name" placeholder="请输入名称" clearable></el-input>
                     </el-form-item>
                     <el-form-item label="备注">
-                        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="可选" />
+                        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="可选"></el-input>
                     </el-form-item>
                     <el-form-item label="循环方式" prop="cycle">
                         <el-select v-model="form.cycle" placeholder="请选择循环方式" style="width: 100%;">
-                            <el-option label="每周某天" value="weekly" />
-                            <el-option label="每月第某天" value="monthly" />
-                            <el-option label="每月倒数某天" value="monthly_last" />
-                            <el-option label="每天" value="daily" />
+                            <el-option label="每周某天" value="weekly"></el-option>
+                            <el-option label="每月第某天" value="monthly"></el-option>
+                            <el-option label="每月倒数某天" value="monthly_last"></el-option>
+                            <el-option label="每天" value="daily"></el-option>
                         </el-select>
                     </el-form-item>
 
                     <template v-if="form.cycle === 'weekly'">
                         <el-form-item label="星期几" prop="weeklyDay">
                             <el-select v-model="form.weeklyDay" style="width: 100%;">
-                                <el-option label="星期日" value="0" />
-                                <el-option label="星期一" value="1" />
-                                <el-option label="星期二" value="2" />
-                                <el-option label="星期三" value="3" />
-                                <el-option label="星期四" value="4" />
-                                <el-option label="星期五" value="5" />
-                                <el-option label="星期六" value="6" />
+                                <el-option label="星期日" value="0"></el-option>
+                                <el-option label="星期一" value="1"></el-option>
+                                <el-option label="星期二" value="2"></el-option>
+                                <el-option label="星期三" value="3"></el-option>
+                                <el-option label="星期四" value="4"></el-option>
+                                <el-option label="星期五" value="5"></el-option>
+                                <el-option label="星期六" value="6"></el-option>
                             </el-select>
                         </el-form-item>
                     </template>
 
                     <template v-if="form.cycle === 'monthly'">
                         <el-form-item label="每月第几天" prop="monthlyDay">
-                            <el-input-number v-model="form.monthlyDay" :min="1" :max="31" />
+                            <el-input-number v-model="form.monthlyDay" :min="1" :max="31"></el-input-number>
                         </el-form-item>
                     </template>
 
                     <template v-if="form.cycle === 'monthly_last'">
                         <el-form-item label="每月倒数第" prop="monthlyLastDay">
                             <div style="display:flex; align-items:center; gap: 10px;">
-                                <el-input-number v-model="form.monthlyLastDay" :min="1" :max="31" />
+                                <el-input-number v-model="form.monthlyLastDay" :min="1" :max="31"></el-input-number>
                                 <span class="hint">天</span>
                             </div>
                         </el-form-item>
                     </template>
 
                     <el-form-item label="今天执行">
-                        <el-switch v-model="form.executeToday" active-text="是" inactive-text="否" />
+                        <el-switch v-model="form.executeToday" active-text="是" inactive-text="否"></el-switch>
                     </el-form-item>
 
                     <el-form-item label="下次执行">
@@ -145,36 +145,55 @@
                     return session;
                 };
 
+                const toLocalYmd = (d) => {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                };
+
+                const toLocalStartOfDayIso = (d) => `${toLocalYmd(d)}T00:00:00`;
+
                 const computeNextDate = () => {
                     let nextDate = null;
                     const cycleType = form.cycle;
 
+                    const today = new Date();
+                    const today0 = new Date(today);
+                    today0.setHours(0, 0, 0, 0);
+
                     if (cycleType === 'weekly') {
                         const day = String(form.weeklyDay);
-                        const today = new Date();
                         const targetDay = parseInt(day, 10);
-                        let daysToAdd = (targetDay - today.getDay() + 7) % 7;
+                        let daysToAdd = (targetDay - today0.getDay() + 7) % 7;
                         if (daysToAdd === 0) daysToAdd = 7;
-                        nextDate = new Date(today);
-                        nextDate.setDate(today.getDate() + daysToAdd);
+                        nextDate = new Date(today0);
+                        nextDate.setDate(today0.getDate() + daysToAdd);
                     } else if (cycleType === 'monthly') {
-                        const today = new Date();
-                        const targetDay = parseInt(String(form.monthlyDay), 10) + 1;
-                        nextDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
-                        if (nextDate < today) nextDate.setMonth(today.getMonth() + 1);
+                        const targetDay = parseInt(String(form.monthlyDay), 10);
+                        nextDate = new Date(today0.getFullYear(), today0.getMonth(), targetDay);
+                        nextDate.setHours(0, 0, 0, 0);
+                        if (nextDate <= today0) nextDate.setMonth(today0.getMonth() + 1);
                     } else if (cycleType === 'monthly_last') {
-                        const today = new Date();
-                        const targetDay = parseInt(String(form.monthlyLastDay), 10) - 1;
-                        nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                        nextDate.setDate(nextDate.getDate() - targetDay + 1);
-                        if (nextDate < today) nextDate.setMonth(today.getMonth() + 1);
+                        const offsetFromEnd = parseInt(String(form.monthlyLastDay), 10);
+                        // 当月最后一天
+                        const lastDay = new Date(today0.getFullYear(), today0.getMonth() + 1, 0);
+                        lastDay.setHours(0, 0, 0, 0);
+                        // 倒数第 offsetFromEnd 天：lastDay - (offsetFromEnd - 1)
+                        nextDate = new Date(lastDay);
+                        nextDate.setDate(lastDay.getDate() - (offsetFromEnd - 1));
+                        if (nextDate <= today0) {
+                            const nextMonthLastDay = new Date(today0.getFullYear(), today0.getMonth() + 2, 0);
+                            nextMonthLastDay.setHours(0, 0, 0, 0);
+                            nextDate = new Date(nextMonthLastDay);
+                            nextDate.setDate(nextMonthLastDay.getDate() - (offsetFromEnd - 1));
+                        }
                     } else if (cycleType === 'daily') {
-                        const today = new Date();
-                        nextDate = new Date(today);
-                        nextDate.setDate(today.getDate() + 1);
+                        nextDate = new Date(today0);
+                        nextDate.setDate(today0.getDate() + 1);
                     }
 
-                    if (form.executeToday) nextDate = new Date();
+                    if (form.executeToday) nextDate = new Date(today0);
                     return nextDate;
                 };
 
@@ -205,9 +224,7 @@
                         if (!session) return;
 
                         const nextDate = computeNextDate();
-                        const formattedNextDate = nextDate
-                            ? `${nextDate.toISOString().split('T')[0]}T00:00:00`
-                            : new Date().toISOString();
+                        const formattedNextDate = nextDate ? toLocalStartOfDayIso(nextDate) : toLocalStartOfDayIso(new Date());
 
                         let cycleConfig = {};
                         if (form.cycle === 'weekly') cycleConfig = { day: String(form.weeklyDay) };

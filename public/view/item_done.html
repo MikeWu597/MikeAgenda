@@ -90,8 +90,34 @@
             <div v-loading="loading">
                 <el-empty v-if="!loading && !items.length" description="暂无已完成事项" />
 
+                <div v-if="items.length" style="display:flex; align-items:center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <div class="muted" style="font-size: 13px;">
+                        共 {{ items.length }} 条
+                    </div>
+                    <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap;">
+                        <div class="muted" style="display:flex; align-items:center; gap: 6px; font-size: 13px;">
+                            <span>每页</span>
+                            <el-select v-model="pageSize" size="small" style="width: 100px;">
+                                <el-option v-for="n in [10, 20, 50, 100]" :key="n" :label="n + ' 条'" :value="n" />
+                            </el-select>
+                        </div>
+                        <el-pagination
+                            background
+                            layout="prev, pager, next"
+                            :total="items.length"
+                            v-model:current-page="currentPage"
+                            v-model:page-size="pageSize"
+                        />
+                        <div class="muted" style="display:flex; align-items:center; gap: 6px; font-size: 13px;">
+                            <span>跳至</span>
+                            <el-input-number v-model="currentPage" :min="1" :max="Math.max(1, Math.ceil(items.length / pageSize))" size="small" style="width: 120px;" />
+                            <span>页</span>
+                        </div>
+                    </div>
+                </div>
+
                 <el-collapse v-if="items.length" v-model="openIds">
-                    <el-collapse-item v-for="it in items" :key="String(it.id)" :name="String(it.id)">
+                    <el-collapse-item v-for="it in pagedItems" :key="String(it.id)" :name="String(it.id)">
                         <template #title>
                             <div style="display:flex; align-items:center; justify-content:space-between; width: 100%; gap: 12px;">
                                 <div style="display:flex; align-items:center; gap: 8px; min-width: 0;">
@@ -262,6 +288,9 @@
                     openIds: [],
                     categories: [],
 
+                    currentPage: 1,
+                    pageSize: 20,
+
                     editDialog: {
                         visible: false,
                         saving: false,
@@ -288,6 +317,26 @@
                         lastOverId: null
                     }
                 };
+            },
+            computed: {
+                pagedItems() {
+                    const start = (Number(this.currentPage || 1) - 1) * Number(this.pageSize || 20);
+                    const end = start + Number(this.pageSize || 20);
+                    return (this.items || []).slice(start, end);
+                }
+            },
+            watch: {
+                items() {
+                    this.currentPage = 1;
+                    this.openIds = [];
+                },
+                pageSize() {
+                    this.currentPage = 1;
+                    this.openIds = [];
+                },
+                currentPage() {
+                    this.openIds = [];
+                }
             },
             methods: {
                 goBack() {

@@ -99,9 +99,12 @@
                     <el-button class="back-button" circle @click="goBack">
                         <i class="bi bi-arrow-left"></i>
                     </el-button>
-                    <h1 class="page-title">所有事项 ({{ items.length }})</h1>
+                    <h1 class="page-title">所有事项</h1>
                 </div>
                 <div>
+                    <el-button type="primary" @click="goToPage('/create/item.html')" style="margin-right: 8px;">
+                        <i class="bi bi-plus-lg"></i> 创建事项
+                    </el-button>
                     <el-button type="success" @click="goToPage('/view/item_done.html')">
                         <i class="bi bi-check-circle"></i> 已完成
                     </el-button>
@@ -123,8 +126,34 @@
                 </el-button>
             </div>
 
+            <div v-if="!loading && items.length > 0" style="display:flex; align-items:center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+                <div style="color:#606266; font-size: 13px;">
+                    共 {{ items.length }} 条
+                </div>
+                <div style="display:flex; align-items:center; gap: 10px; flex-wrap: wrap;">
+                    <div style="display:flex; align-items:center; gap: 6px; color:#606266; font-size: 13px;">
+                        <span>每页</span>
+                        <el-select v-model="pageSize" size="small" style="width: 100px;">
+                            <el-option v-for="n in pageSizeOptions" :key="n" :label="n + ' 条'" :value="n" />
+                        </el-select>
+                    </div>
+                    <el-pagination
+                        background
+                        layout="prev, pager, next"
+                        :total="items.length"
+                        v-model:current-page="currentPage"
+                        v-model:page-size="pageSize"
+                    />
+                    <div style="display:flex; align-items:center; gap: 6px; color:#606266; font-size: 13px;">
+                        <span>跳至</span>
+                        <el-input-number v-model="jumpPage" :min="1" :max="maxPage" size="small" style="width: 120px;" @change="applyJump" />
+                        <span>页</span>
+                    </div>
+                </div>
+            </div>
+
             <div v-if="!loading && items.length > 0" class="items-container">
-                <div v-for="item in items" :key="item.id" class="item-card">
+                <div v-for="item in pagedItems" :key="item.id" class="item-card">
                     <div class="item-header">
                         <div class="item-title">{{ item.title }}</div>
                         <el-dropdown @command="handleCommand">
@@ -228,7 +257,7 @@
     <script src="/vendor/element-plus/index.full.js"></script>
     <script src="/vendor/element-plus-icons/icons-vue.iife.min.js"></script>
     <script>
-        const { createApp, ref, reactive, onMounted } = Vue;
+        const { createApp, ref, reactive, computed, watch, onMounted } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
 
         createApp({
@@ -236,6 +265,10 @@
                 const loading = ref(true);
                 const items = ref([]);
                 const categories = ref([]);
+                const currentPage = ref(1);
+                const pageSize = ref(20);
+                const pageSizeOptions = [10, 20, 50, 100];
+                const jumpPage = ref(1);
                 const editDialogVisible = ref(false);
                 const editForm = reactive({
                     id: null,
@@ -245,6 +278,21 @@
                     planned_time: '',
                     categoryIds: []
                 });
+
+                const maxPage = computed(() => {
+                    return Math.max(1, Math.ceil(items.value.length / pageSize.value));
+                });
+
+                const pagedItems = computed(() => {
+                    const start = (currentPage.value - 1) * pageSize.value;
+                    return items.value.slice(start, start + pageSize.value);
+                });
+
+                const applyJump = () => {
+                    const raw = Number(jumpPage.value);
+                    const clamped = Math.min(maxPage.value, Math.max(1, Number.isFinite(raw) ? raw : 1));
+                    currentPage.value = clamped;
+                };
 
                 // 获取session
                 const getSession = () => {
@@ -256,6 +304,21 @@
                         }
                     }
                     return null;
+                };
+
+                const safeJsonParse = (value, fallback) => {
+                    try {
+                        if (!value) return fallback;
+                        if (typeof value !== 'string') return fallback;
+                        return JSON.parse(value);
+                    } catch {
+                        return fallback;
+                    }
+                };
+
+                const normalizePlannedTime = (value) => {
+                    if (!value) return '';
+                    return String(value).replace('T', ' ');
                 };
 
                 // 加载分类
@@ -288,20 +351,20 @@
                     try {
                         const response = await fetch('/api/getItems', {
                             method: 'GET',
-                            headers: { 'Session': session }
+                            headers: { 'session': session }
                         });
                         
                         const data = await response.json();
                         if (data.success) {
-                            // 过滤掉已完成的事项
-                            items.value = data.items.filter(item => item.status !== 'done');
+                            // 后端已过滤：done = 0 AND archived = 0
+                            items.value = Array.isArray(data.items) ? data.items : [];
                             
                             // 为每个item添加分类名称
                             items.value.forEach(item => {
-                                if (item.category_ids) {
-                                    const catIds = JSON.parse(item.category_ids);
+                                if (item.category) {
+                                    const catIds = safeJsonParse(item.category, []);
                                     item.categoryNames = catIds.map(id => {
-                                        const cat = categories.value.find(c => c.id === id);
+                                        const cat = categories.value.find(c => String(c.id) === String(id));
                                         return cat ? cat.name : '';
                                     }).filter(Boolean);
                                 }
@@ -328,8 +391,8 @@
                         editForm.title = item.title;
                         editForm.description = item.description || '';
                         editForm.deadline = item.deadline;
-                        editForm.planned_time = item.planned_time || '';
-                        editForm.categoryIds = item.category_ids ? JSON.parse(item.category_ids) : [];
+                        editForm.planned_time = normalizePlannedTime(item.planned_time || '');
+                        editForm.categoryIds = safeJsonParse(item.category, []);
                         editDialogVisible.value = true;
                     } else if (action === 'done') {
                         await markAsDone(item);
@@ -343,7 +406,7 @@
                     const session = getSession();
                     try {
                         const response = await fetch('/api/updateItem', {
-                            method: 'PUT',
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 session,
@@ -351,8 +414,8 @@
                                 title: editForm.title,
                                 description: editForm.description,
                                 deadline: editForm.deadline,
-                                plannedTime: editForm.planned_time,
-                                categoryIds: editForm.categoryIds
+                                planned_time: editForm.planned_time,
+                                category: editForm.categoryIds
                             })
                         });
 
@@ -380,7 +443,7 @@
                         });
 
                         const session = getSession();
-                        const response = await fetch('/api/markItemDone', {
+                        const response = await fetch('/api/markItemAsDone', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ session, id: item.id })
@@ -412,7 +475,7 @@
 
                         const session = getSession();
                         const response = await fetch('/api/deleteItem', {
-                            method: 'DELETE',
+                            method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ session, id: item.id })
                         });
@@ -447,9 +510,41 @@
                     await loadItems();
                 });
 
+                watch(
+                    () => [items.value.length, pageSize.value],
+                    () => {
+                        const total = items.value.length;
+                        const maxPage = Math.max(1, Math.ceil(total / pageSize.value));
+                        if (currentPage.value > maxPage) currentPage.value = maxPage;
+                        if (currentPage.value < 1) currentPage.value = 1;
+                        jumpPage.value = currentPage.value;
+                    }
+                );
+
+                watch(
+                    () => currentPage.value,
+                    () => {
+                        jumpPage.value = currentPage.value;
+                    }
+                );
+
+                watch(
+                    () => pageSize.value,
+                    () => {
+                        currentPage.value = 1;
+                    }
+                );
+
                 return {
                     loading,
                     items,
+                    pagedItems,
+                    currentPage,
+                    pageSize,
+                    pageSizeOptions,
+                    jumpPage,
+                    maxPage,
+                    applyJump,
                     categories,
                     editDialogVisible,
                     editForm,

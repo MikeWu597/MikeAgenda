@@ -168,7 +168,8 @@
 
                     const data = await resp.json();
                     if (data.success) {
-                        this.form.isTeaching = !!data.isTeaching;
+                        // 后端返回 teaching: '0' | '1'
+                        this.form.isTeaching = String(data.teaching) === '1';
                     } else {
                         ElementPlus.ElMessage.error(data.message || '加载授课模式失败');
                     }
@@ -179,13 +180,14 @@
 
                     this.savingTeaching = true;
                     try {
+                        const teaching = this.form.isTeaching ? '1' : '0';
                         const resp = await fetch('/api/setTeachingStatus', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
                                 'session': session
                             },
-                            body: JSON.stringify({ session, isTeaching: this.form.isTeaching })
+                            body: JSON.stringify({ session, teaching })
                         });
 
                         if (resp.status === 401) {
@@ -227,8 +229,10 @@
 
                     const data = await resp.json();
                     if (data.success) {
-                        const n = data.limit != null ? parseInt(data.limit, 10) : NaN;
-                        this.form.imageLimit = Number.isFinite(n) && n > 0 ? n : null;
+                        // 后端返回 limit（字节），页面展示/输入用 MB
+                        const bytes = data.limit != null ? parseInt(data.limit, 10) : NaN;
+                        const mb = Number.isFinite(bytes) && bytes > 0 ? Math.floor(bytes / (1024 * 1024)) : NaN;
+                        this.form.imageLimit = Number.isFinite(mb) && mb > 0 ? mb : null;
                     } else {
                         ElementPlus.ElMessage.error(data.message || '加载图片限制失败');
                     }
@@ -243,6 +247,12 @@
                         return;
                     }
 
+                    const bytes = Math.floor(Number(value) * 1024 * 1024);
+                    if (!Number.isFinite(bytes) || bytes <= 0) {
+                        ElementPlus.ElMessage.warning('请输入有效的存储限制');
+                        return;
+                    }
+
                     this.savingImage = true;
                     try {
                         const resp = await fetch('/api/setImageStorageLimit', {
@@ -251,7 +261,7 @@
                                 'Content-Type': 'application/json',
                                 'session': session
                             },
-                            body: JSON.stringify({ session, limit: value })
+                            body: JSON.stringify({ session, limit: bytes })
                         });
 
                         if (resp.status === 401) {

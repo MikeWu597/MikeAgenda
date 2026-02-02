@@ -57,13 +57,13 @@
                             <div :style="{ width: '18px', height: '18px', borderRadius: '4px', backgroundColor: row.color || '#dcdfe6' }"></div>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="name" label="名称" min-width="180" />
+                    <el-table-column prop="name" label="名称" min-width="180"></el-table-column>
                     <el-table-column prop="description" label="描述" min-width="260">
                         <template #default="{ row }">
                             <span class="muted">{{ row.description || '无描述' }}</span>
                         </template>
                     </el-table-column>
-                    <el-table-column prop="id" label="#" width="90" />
+                    <el-table-column prop="id" label="#" width="90"></el-table-column>
                     <el-table-column label="" width="110">
                         <template #default>
                             <span class="muted">点击查看</span>

@@ -31,20 +31,29 @@
             z-index: 1000;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: center;
             padding: 0 20px;
         }
         .header-title {
             font-size: 20px;
             font-weight: 600;
             color: #303133;
+            position: absolute;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
         }
         .header-date {
             font-size: 18px;
             font-weight: 500;
             color: #409eff;
-            cursor: pointer;
             display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-date .date-text {
+            cursor: pointer;
+            display: inline-flex;
             align-items: center;
             gap: 8px;
         }
@@ -147,33 +156,22 @@
         <!-- 顶部导航栏 -->
         <div class="top-header">
             <div class="header-title"></div>
-            <div class="header-date" @click="showDatePicker">
-                <i class="bi bi-calendar3"></i>
-                {{ formattedDate }}
-            </div>
-            <div class="header-actions">
-                <el-button circle @click="goToPage('/settings.html')" title="设置">
-                    <i class="bi bi-gear"></i>
+            <div class="header-date">
+                <el-button circle size="small" @click="changeDate(-1)">
+                    <i class="bi bi-chevron-left"></i>
                 </el-button>
-                <el-button circle @click="logout">
-                    <i class="bi bi-box-arrow-right"></i>
+                <span class="date-text" @click="showDatePicker" title="点击选择日期">
+                    <i class="bi bi-calendar3"></i>
+                    {{ formattedDate }}
+                </span>
+                <el-button circle size="small" @click="changeDate(1)">
+                    <i class="bi bi-chevron-right"></i>
                 </el-button>
             </div>
         </div>
 
         <!-- 主内容区 -->
         <div class="main-content">
-            <!-- 日期导航 -->
-            <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 20px;">
-                <el-button @click="changeDate(-1)" circle>
-                    <i class="bi bi-chevron-left"></i>
-                </el-button>
-                <span style="font-size: 16px; font-weight: 500;">{{ dateDisplay }}</span>
-                <el-button @click="changeDate(1)" circle>
-                    <i class="bi bi-chevron-right"></i>
-                </el-button>
-            </div>
-
             <!-- 内容网格 -->
             <div class="content-grid">
                 <!-- 待办事项 -->
@@ -283,17 +281,27 @@
                         <el-dropdown-item @click="goToPage('/view/project.html')">
                             <i class="bi bi-folder"></i> 项目
                         </el-dropdown-item>
-                        <el-dropdown-item divided @click="goToPage('/view/category.html')">
-                            <i class="bi bi-tags"></i> 管理分类
+                        <el-dropdown-item @click="goToPage('/view/category.html')">
+                            <i class="bi bi-tags"></i> 分类
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/checklists.html')">
                             <i class="bi bi-card-checklist"></i> 检查清单
                         </el-dropdown-item>
-                        <el-dropdown-item @click="goToPage('/settings.html')">
+                        <el-dropdown-item divided @click="goToPage('/settings.html')">
                             <i class="bi bi-gear"></i> 设置
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="logout">
+                            <i class="bi bi-box-arrow-right"></i> 退出登录
                         </el-dropdown-item>
                         <el-dropdown-item divided @click="goToPage('/tool/farm.html')">
                             <i class="bi bi-camera"></i> 农场监控
+                        </el-dropdown-item>
+
+                        <el-dropdown-item divided @click="openFoodOrder">
+                            <i class="bi bi-shop"></i> 学校点餐
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="openNoodleOrder">
+                            <i class="bi bi-bag"></i> 遇见小面点餐
                         </el-dropdown-item>
                     </el-dropdown-menu>
                 </template>
@@ -338,19 +346,6 @@
                     const month = String(date.getMonth() + 1).padStart(2, '0');
                     const day = String(date.getDate()).padStart(2, '0');
                     return `${year}-${month}-${day}`;
-                });
-
-                const dateDisplay = computed(() => {
-                    const date = currentDate.value;
-                    const today = new Date();
-                    const diffTime = date.getTime() - today.setHours(0, 0, 0, 0);
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    if (diffDays === 0) return '今天';
-                    if (diffDays === 1) return '明天';
-                    if (diffDays === -1) return '昨天';
-                    
-                    return formattedDate.value;
                 });
 
                 // 获取session
@@ -405,7 +400,6 @@
                         if (data.success) {
                             const dateStr = formattedDate.value;
                             items.value = data.items.filter(item => {
-                                if (item.status === 'done') return false;
                                 return item.deadline === dateStr || item.planned_time?.startsWith(dateStr);
                             });
                         } else if (response.status === 401) {
@@ -562,6 +556,16 @@
                     window.location.href = `/view/project_detail.html?id=${projectId}`;
                 };
 
+                // 新增: 学校点餐系统
+                const openFoodOrder = () => {
+                    window.open('https://csd.order.place/store/112871/mode/prekiosk?_aigens_source=scan&onpremise=true', '_blank');
+                };
+
+                // 新增: 遇见小面点餐系统
+                const openNoodleOrder = () => {
+                    window.open('https://h5.xiaonoodles.com/materialQrcodeId=1839797535331319808', '_blank');
+                };
+
                 // 登出
                 const logout = async () => {
                     try {
@@ -597,7 +601,6 @@
                 return {
                     currentDate,
                     formattedDate,
-                    dateDisplay,
                     datePickerVisible,
                     selectedDate,
                     items,
@@ -610,6 +613,8 @@
                     getCategoryType,
                     goToPage,
                     goToProject,
+                    openFoodOrder,
+                    openNoodleOrder,
                     logout
                 };
             }

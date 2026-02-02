@@ -126,8 +126,9 @@
                     </div>
                     <el-slider
                         v-model="sliderValue"
-                        :max="imagesList.length - 1"
+                        :max="Math.max(0, imagesList.length - 1)"
                         :min="0"
+                        :disabled="imagesList.length === 0"
                         :show-tooltip="false"
                         @change="onSliderChange"
                     />

@@ -139,7 +139,7 @@
                         try {
                             const response = await fetch('/api/getItems', {
                                 method: 'GET',
-                                headers: { 'Session': session }
+                                headers: { 'session': session }
                             });
                             
                             const data = await response.json();

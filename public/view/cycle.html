@@ -46,7 +46,7 @@
 
             <el-card shadow="hover" style="border-radius: 12px;">
                 <el-table v-loading="loading" :data="cycles" style="width: 100%" empty-text="暂无循环">
-                    <el-table-column prop="name" label="名称" min-width="170" />
+                    <el-table-column prop="name" label="名称" min-width="170"></el-table-column>
                     <el-table-column label="循环方式" min-width="200">
                         <template #default="{ row }">
                             <span class="muted">{{ row._formattedCycle }}</span>
@@ -83,23 +83,23 @@
                     </el-form-item>
                     <el-form-item label="循环方式" prop="cycle">
                         <el-select v-model="edit.cycle" style="width: 100%;" placeholder="请选择">
-                            <el-option label="每周某天" value="weekly" />
-                            <el-option label="每月第某天" value="monthly" />
-                            <el-option label="每月倒数某天" value="monthly_last" />
-                            <el-option label="每天" value="daily" />
+                            <el-option label="每周某天" value="weekly"></el-option>
+                            <el-option label="每月第某天" value="monthly"></el-option>
+                            <el-option label="每月倒数某天" value="monthly_last"></el-option>
+                            <el-option label="每天" value="daily"></el-option>
                         </el-select>
                     </el-form-item>
 
                     <template v-if="edit.cycle === 'weekly'">
                         <el-form-item label="星期几" prop="weeklyDay">
                             <el-select v-model="edit.weeklyDay" style="width: 100%;">
-                                <el-option label="星期日" value="0" />
-                                <el-option label="星期一" value="1" />
-                                <el-option label="星期二" value="2" />
-                                <el-option label="星期三" value="3" />
-                                <el-option label="星期四" value="4" />
-                                <el-option label="星期五" value="5" />
-                                <el-option label="星期六" value="6" />
+                                <el-option label="星期日" value="0"></el-option>
+                                <el-option label="星期一" value="1"></el-option>
+                                <el-option label="星期二" value="2"></el-option>
+                                <el-option label="星期三" value="3"></el-option>
+                                <el-option label="星期四" value="4"></el-option>
+                                <el-option label="星期五" value="5"></el-option>
+                                <el-option label="星期六" value="6"></el-option>
                             </el-select>
                         </el-form-item>
                     </template>
@@ -214,6 +214,15 @@
                     return `${mm}-${dd}`;
                 };
 
+                const toLocalYmd = (d) => {
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${yyyy}-${mm}-${dd}`;
+                };
+
+                const toLocalStartOfDayIso = (d) => `${toLocalYmd(d)}T00:00:00`;
+
                 const enrichCycles = (rows) => {
                     return rows.map((r) => {
                         const { cycleType, configObj } = parseCycle(r);
@@ -283,49 +292,61 @@
                     }
                 };
 
-                const calculateDoneDate = (cycleType, configObj, currentNextDate) => {
-                    let nextDate = new Date(currentNextDate);
-                    nextDate.setDate(nextDate.getDate() + 1);
+                const calculateDoneDate = (cycleType, configObj, currentNextDateRaw) => {
+                    const base = new Date(currentNextDateRaw);
+                    base.setHours(0, 0, 0, 0);
+                    let nextDate = new Date(base);
+                    nextDate.setDate(base.getDate() + 1);
                     let dayCount = 0;
                     while (
                         !isCycleMatch(
                             cycleType,
                             JSON.stringify(configObj),
-                            nextDate.toISOString().split('T')[0].replace(/-/g, '')
+                            toLocalYmd(nextDate).replace(/-/g, '')
                         ) &&
                         dayCount <= 365
                     ) {
                         nextDate.setDate(nextDate.getDate() + 1);
                         dayCount++;
                     }
-                    return nextDate ? `${nextDate.toISOString().split('T')[0]}T00:00:00` : null;
+                    return nextDate ? toLocalStartOfDayIso(nextDate) : null;
                 };
 
                 const calculateNextDate = (cycleType, configObj) => {
                     const today = new Date();
+                    const today0 = new Date(today);
+                    today0.setHours(0, 0, 0, 0);
                     let nextDate = null;
 
                     if (cycleType === 'weekly') {
                         const targetDay = parseInt(configObj.day, 10);
-                        let daysToAdd = (targetDay - today.getDay() + 7) % 7;
+                        let daysToAdd = (targetDay - today0.getDay() + 7) % 7;
                         if (daysToAdd === 0) daysToAdd = 7;
-                        nextDate = new Date(today);
-                        nextDate.setDate(today.getDate() + daysToAdd);
+                        nextDate = new Date(today0);
+                        nextDate.setDate(today0.getDate() + daysToAdd);
                     } else if (cycleType === 'monthly') {
-                        const targetDay = parseInt(configObj.day, 10) + 1;
-                        nextDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
-                        if (nextDate < today) nextDate.setMonth(today.getMonth() + 1);
+                        const targetDay = parseInt(configObj.day, 10);
+                        nextDate = new Date(today0.getFullYear(), today0.getMonth(), targetDay);
+                        nextDate.setHours(0, 0, 0, 0);
+                        if (nextDate <= today0) nextDate.setMonth(today0.getMonth() + 1);
                     } else if (cycleType === 'monthly_last') {
-                        const targetDay = parseInt(configObj.day, 10) - 1;
-                        nextDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                        nextDate.setDate(nextDate.getDate() - targetDay + 1);
-                        if (nextDate < today) nextDate.setMonth(today.getMonth() + 1);
+                        const offsetFromEnd = parseInt(configObj.day, 10);
+                        const lastDay = new Date(today0.getFullYear(), today0.getMonth() + 1, 0);
+                        lastDay.setHours(0, 0, 0, 0);
+                        nextDate = new Date(lastDay);
+                        nextDate.setDate(lastDay.getDate() - (offsetFromEnd - 1));
+                        if (nextDate <= today0) {
+                            const nextMonthLastDay = new Date(today0.getFullYear(), today0.getMonth() + 2, 0);
+                            nextMonthLastDay.setHours(0, 0, 0, 0);
+                            nextDate = new Date(nextMonthLastDay);
+                            nextDate.setDate(nextMonthLastDay.getDate() - (offsetFromEnd - 1));
+                        }
                     } else if (cycleType === 'daily') {
-                        nextDate = new Date(today);
-                        nextDate.setDate(today.getDate() + 1);
+                        nextDate = new Date(today0);
+                        nextDate.setDate(today0.getDate() + 1);
                     }
 
-                    return nextDate ? `${nextDate.toISOString().split('T')[0]}T00:00:00` : null;
+                    return nextDate ? toLocalStartOfDayIso(nextDate) : null;
                 };
 
                 const computeNextPreviewDate = () => {
@@ -337,8 +358,9 @@
 
                     let next = calculateNextDate(edit.cycle, configObj);
                     if (edit.executeToday) {
-                        const today = new Date();
-                        next = `${today.toISOString().split('T')[0]}T00:00:00`;
+                        const today0 = new Date();
+                        today0.setHours(0, 0, 0, 0);
+                        next = toLocalStartOfDayIso(today0);
                     }
                     return (next || '').split('T')[0] || '--';
                 };
@@ -384,8 +406,9 @@
 
                         let next = calculateNextDate(edit.cycle, cycleConfig);
                         if (edit.executeToday) {
-                            const today = new Date();
-                            next = `${today.toISOString().split('T')[0]}T00:00:00`;
+                            const today0 = new Date();
+                            today0.setHours(0, 0, 0, 0);
+                            next = toLocalStartOfDayIso(today0);
                         }
 
                         saving.value = true;
@@ -458,9 +481,7 @@
                     const session = ensureAuth();
                     if (!session) return;
                     const cycleConfig = parseCycle(row);
-                    const currentNextDate = new Date(row.next);
-                    currentNextDate.setDate(currentNextDate.getDate() + 1);
-                    const nextNextDate = calculateDoneDate(cycleConfig.cycleType, cycleConfig.configObj, currentNextDate);
+                    const nextNextDate = calculateDoneDate(cycleConfig.cycleType, cycleConfig.configObj, row.next);
 
                     try {
                         const res = await fetch('/api/updateCycleNextTime', {
