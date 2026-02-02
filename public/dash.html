@@ -57,6 +57,35 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* 顶部日期：点击直接弹出日历（不使用模态框） */
+        .header-date .date-trigger {
+            position: relative;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            user-select: none;
+        }
+        .header-date .date-trigger:hover {
+            background: rgba(64, 158, 255, 0.08);
+        }
+        .header-date .date-picker-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+        }
+        .header-date .date-picker-overlay .el-input__wrapper {
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            box-shadow: none;
+        }
+        .header-date .date-picker-overlay .el-input__inner {
+            cursor: pointer;
+        }
         .header-actions {
             display: flex;
             gap: 12px;
@@ -206,10 +235,19 @@
                 <el-button circle size="small" @click="changeDate(-1)">
                     <i class="bi bi-chevron-left"></i>
                 </el-button>
-                <span class="date-text" @click="showDatePicker" title="点击选择日期">
+                <div class="date-text date-trigger" title="点击选择日期">
                     <i class="bi bi-calendar3"></i>
-                    {{ formattedDate }}
-                </span>
+                    <span>{{ formattedDate }}</span>
+                    <el-date-picker
+                        v-model="selectedDate"
+                        type="date"
+                        format="YYYY-MM-DD"
+                        :clearable="false"
+                        :editable="false"
+                        class="date-picker-overlay"
+                        @change="onDateChange"
+                    />
+                </div>
                 <el-button circle size="small" @click="changeDate(1)">
                     <i class="bi bi-chevron-right"></i>
                 </el-button>
@@ -372,16 +410,6 @@
             </el-dropdown>
         </div>
 
-        <!-- 日期选择器对话框 -->
-        <el-dialog v-model="datePickerVisible" title="选择日期" width="400px">
-            <el-date-picker
-                v-model="selectedDate"
-                type="date"
-                placeholder="选择日期"
-                style="width: 100%"
-                @change="onDateChange"
-            />
-        </el-dialog>
     </div>
 
     <script src="/vendor/vue/vue.global.prod.js"></script>
@@ -394,7 +422,6 @@
         createApp({
             setup() {
                 const currentDate = ref(new Date());
-                const datePickerVisible = ref(false);
                 const selectedDate = ref(new Date());
                 
                 const items = ref([]);
@@ -728,17 +755,11 @@
                     loadAllData();
                 };
 
-                // 显示日期选择器
-                const showDatePicker = () => {
-                    datePickerVisible.value = true;
-                };
-
                 // 日期改变
                 const onDateChange = (date) => {
                     if (date) {
                         currentDate.value = date;
                         loadAllData();
-                        datePickerVisible.value = false;
                     }
                 };
 
@@ -803,7 +824,6 @@
                 return {
                     currentDate,
                     formattedDate,
-                    datePickerVisible,
                     selectedDate,
                     items,
                     cycles,
@@ -813,7 +833,6 @@
                     teachingStatus,
                     projectParticipation,
                     changeDate,
-                    showDatePicker,
                     onDateChange,
                     getCategoryType,
                     goToPage,
