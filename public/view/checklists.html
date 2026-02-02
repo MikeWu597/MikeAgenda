@@ -45,7 +45,7 @@
             </div>
 
             <el-card shadow="hover" style="border-radius: 12px;" v-loading="loading">
-                <el-empty v-if="!loading && checklists.length === 0" description="暂无检查表" />
+                <el-empty v-if="!loading && checklists.length === 0" description="暂无检查表"></el-empty>
 
                 <el-row v-if="checklists.length > 0" :gutter="12">
                     <el-col v-for="c in checklists" :key="c.id" :xs="24" :sm="12" :md="8" style="margin-bottom: 12px;">
@@ -63,6 +63,7 @@
 
     <script src="/vendor/vue/vue.global.prod.js"></script>
     <script src="/vendor/element-plus/index.full.js"></script>
+    <script src="/js/checklist_api.js"></script>
     <script>
         const { createApp, ref, onMounted } = Vue;
         const { ElMessage } = ElementPlus;
@@ -71,24 +72,6 @@
             setup() {
                 const loading = ref(true);
                 const checklists = ref([]);
-
-                const getSession = () => {
-                    const cookies = document.cookie.split(';');
-                    for (const cookie of cookies) {
-                        const [name, value] = cookie.trim().split('=');
-                        if (name === 'session') return decodeURIComponent(value);
-                    }
-                    return null;
-                };
-
-                const ensureAuth = () => {
-                    const session = getSession();
-                    if (!session) {
-                        window.location.href = '/login.html';
-                        return null;
-                    }
-                    return session;
-                };
 
                 const goBack = () => {
                     window.location.href = '/';
@@ -103,23 +86,10 @@
                 };
 
                 const reload = async () => {
-                    const session = ensureAuth();
-                    if (!session) return;
-
                     loading.value = true;
                     try {
-                        const res = await fetch('/api/getChecklists', {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'session': session
-                            }
-                        });
-                        if (res.status === 401) {
-                            window.location.href = '/login.html';
-                            return;
-                        }
-                        const data = await res.json();
+                        const data = await MikeChecklistApi.getChecklists();
+                        if (!data) return;
                         if (!data.success) throw new Error(data.message || '加载检查表失败');
                         checklists.value = Array.isArray(data.checklists) ? data.checklists : [];
                     } catch (e) {

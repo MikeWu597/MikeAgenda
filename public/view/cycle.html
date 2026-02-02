@@ -62,12 +62,22 @@
                             <span class="muted">{{ row.note || '无备注' }}</span>
                         </template>
                     </el-table-column>
-                    <el-table-column label="操作" width="320" fixed="right">
+                    <el-table-column label="操作" width="140" fixed="right">
                         <template #default="{ row }">
-                            <el-button size="small" @click.stop="openEdit(row)">编辑</el-button>
-                            <el-button size="small" type="danger" @click.stop="remove(row)">删除</el-button>
-                            <el-button size="small" type="success" @click.stop="completeCurrent(row)">完成本次</el-button>
-                            <el-button size="small" type="warning" @click.stop="delayOneDay(row)">推迟一天</el-button>
+                            <el-dropdown trigger="click" @command="handleActionCommand">
+                                <el-button size="small" @click.stop>
+                                    操作
+                                    <i class="bi bi-chevron-down" style="margin-left: 6px;"></i>
+                                </el-button>
+                                <template #dropdown>
+                                    <el-dropdown-menu>
+                                        <el-dropdown-item :command="{ action: 'edit', row }">编辑</el-dropdown-item>
+                                        <el-dropdown-item :command="{ action: 'remove', row }" divided>删除</el-dropdown-item>
+                                        <el-dropdown-item :command="{ action: 'complete', row }">完成本次</el-dropdown-item>
+                                        <el-dropdown-item :command="{ action: 'delay', row }">推迟一天</el-dropdown-item>
+                                    </el-dropdown-menu>
+                                </template>
+                            </el-dropdown>
                         </template>
                     </el-table-column>
                 </el-table>
@@ -392,6 +402,16 @@
                     editVisible.value = true;
                 };
 
+                const handleActionCommand = (payload) => {
+                    const action = payload?.action;
+                    const row = payload?.row;
+                    if (!row) return;
+                    if (action === 'edit') return openEdit(row);
+                    if (action === 'remove') return remove(row);
+                    if (action === 'complete') return completeCurrent(row);
+                    if (action === 'delay') return delayOneDay(row);
+                };
+
                 const save = async () => {
                     if (!formRef.value) return;
                     await formRef.value.validate(async (valid) => {
@@ -551,6 +571,7 @@
                     saving,
                     nextPreview,
                     openEdit,
+                    handleActionCommand,
                     save,
                     remove,
                     completeCurrent,

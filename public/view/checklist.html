@@ -72,7 +72,7 @@
                     </div>
                 </template>
 
-                <el-empty v-if="!loading && !allCompleted && items.length === 0" description="该检查表暂无检查项" />
+                <el-empty v-if="!loading && !allCompleted && items.length === 0" description="该检查表暂无检查项"></el-empty>
 
                 <div v-if="!loading && !allCompleted && items.length > 0">
                     <div v-for="it in items" :key="it.id" style="margin-bottom: 10px;">
@@ -96,6 +96,7 @@
 
     <script src="/vendor/vue/vue.global.prod.js"></script>
     <script src="/vendor/element-plus/index.full.js"></script>
+    <script src="/js/checklist_api.js"></script>
     <script>
         const { createApp, ref, computed, onMounted } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
@@ -112,23 +113,7 @@
                 const savingIds = ref(new Set());
                 const savingAny = computed(() => savingIds.value.size > 0);
 
-                const getSession = () => {
-                    const cookies = document.cookie.split(';');
-                    for (const cookie of cookies) {
-                        const [name, value] = cookie.trim().split('=');
-                        if (name === 'session') return decodeURIComponent(value);
-                    }
-                    return null;
-                };
-
-                const ensureAuth = () => {
-                    const session = getSession();
-                    if (!session) {
-                        window.location.href = '/login.html';
-                        return null;
-                    }
-                    return session;
-                };
+                const ensureAuth = () => MikeChecklistApi.ensureSessionOrRedirect();
 
                 const ensureChecklistId = () => {
                     if (!checklistId) {
@@ -149,23 +134,11 @@
 
                 const reload = async () => {
                     if (!ensureChecklistId()) return;
-                    const session = ensureAuth();
-                    if (!session) return;
 
                     loading.value = true;
                     try {
-                        const res = await fetch(`/api/getChecklist/${checklistId}`, {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'session': session
-                            }
-                        });
-                        if (res.status === 401) {
-                            window.location.href = '/login.html';
-                            return;
-                        }
-                        const data = await res.json();
+                        const data = await MikeChecklistApi.getChecklist(checklistId);
+                        if (!data) return;
                         if (!data.success) throw new Error(data.message || '加载检查表详情失败');
                         checklistName.value = data.checklist?.name || '检查表';
                         items.value = Array.isArray(data.checklist?.items) ? data.checklist.items.map(x => ({ ...x })) : [];
@@ -179,27 +152,9 @@
                 };
 
                 const updateItemStatus = async (itemId, checked) => {
-                    const session = ensureAuth();
-                    if (!session) return { ok: false };
-
                     try {
-                        const res = await fetch('/api/updateChecklistItemStatus', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'session': session
-                            },
-                            body: JSON.stringify({
-                                session: session,
-                                id: itemId,
-                                checked: checked
-                            })
-                        });
-                        if (res.status === 401) {
-                            window.location.href = '/login.html';
-                            return { ok: false };
-                        }
-                        const data = await res.json();
+                        const data = await MikeChecklistApi.updateChecklistItemStatus(itemId, checked);
+                        if (!data) return { ok: false };
                         if (!data.success) throw new Error(data.message || '更新检查项状态失败');
                         return { ok: true };
                     } catch (e) {
@@ -262,22 +217,9 @@
                     }
 
                     // 复用旧实现：先拉取清单，再逐个更新
-                    const session = ensureAuth();
-                    if (!session) return;
-
                     try {
-                        const res = await fetch(`/api/getChecklist/${checklistId}`, {
-                            method: 'GET',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'session': session
-                            }
-                        });
-                        if (res.status === 401) {
-                            window.location.href = '/login.html';
-                            return;
-                        }
-                        const data = await res.json();
+                        const data = await MikeChecklistApi.getChecklist(checklistId);
+                        if (!data) return;
                         if (!data.success) throw new Error(data.message || '重置检查表失败');
                         const serverItems = Array.isArray(data.checklist?.items) ? data.checklist.items : [];
 

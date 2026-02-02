@@ -51,6 +51,12 @@
             align-items: center;
             gap: 8px;
         }
+
+        /* 修复：日期选择器的透明覆盖层可能挡住左右切换按钮的点击 */
+        .header-date > .el-button {
+            position: relative;
+            z-index: 3;
+        }
         .header-date .date-text {
             cursor: pointer;
             display: inline-flex;
