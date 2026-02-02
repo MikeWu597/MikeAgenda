@@ -34,9 +34,126 @@
             background: #fff;
         }
 
-        canvas {
-            display: block;
+        .schedule {
+            width: 100%;
+            min-width: 0;
+            color: #303133;
+        }
+
+        .schedule-header {
+            display: grid;
+            grid-template-columns: var(--time-col-w) repeat(7, 1fr);
+            position: sticky;
+            top: 0;
+            z-index: 2;
             background: #fff;
+            border-bottom: 1px solid #ebeef5;
+        }
+
+        .schedule-header .head-cell {
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 600;
+            background: #f7f9fc;
+            border-right: 1px solid #ebeef5;
+        }
+
+        .schedule-header .head-cell.time-head {
+            background: #ffffff;
+        }
+
+        .schedule-body {
+            display: grid;
+            grid-template-columns: var(--time-col-w) repeat(7, 1fr);
+            min-height: var(--body-h);
+        }
+
+        .time-col {
+            position: relative;
+            background: #fff;
+            border-right: 1px solid #ebeef5;
+            height: var(--body-h);
+            box-sizing: border-box;
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0,
+                transparent calc(var(--row-h) - 1px),
+                #ebeef5 calc(var(--row-h) - 1px),
+                #ebeef5 var(--row-h)
+            );
+            background-position-y: calc(var(--grid-offset-y) - var(--row-h));
+        }
+
+        .time-cell {
+            height: var(--row-h);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #606266;
+            border-bottom: 1px solid #ebeef5;
+            box-sizing: border-box;
+        }
+
+        .time-label {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #606266;
+            transform: translateY(-50%);
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .day-col {
+            position: relative;
+            height: var(--body-h);
+            border-right: 1px solid #ebeef5;
+            box-sizing: border-box;
+            background-image: repeating-linear-gradient(
+                to bottom,
+                transparent 0,
+                transparent calc(var(--row-h) - 1px),
+                #ebeef5 calc(var(--row-h) - 1px),
+                #ebeef5 var(--row-h)
+            );
+            background-color: #ffffff;
+            background-position-y: calc(var(--grid-offset-y) - var(--row-h));
+        }
+
+        .course-card {
+            position: absolute;
+            left: 6px;
+            right: 6px;
+            cursor: pointer;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .course-card .course-code {
+            font-weight: 700;
+            font-size: 12px;
+            line-height: 16px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .course-card .course-text {
+            font-size: 12px;
+            line-height: 16px;
+            margin-top: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .muted {
@@ -73,7 +190,38 @@
             </div>
 
             <div class="canvas-wrap" v-loading="loading">
-                <canvas ref="canvas" width="1400" height="1200"></canvas>
+                <el-scrollbar :wrap-style="{ overflowX: 'hidden' }">
+                    <div class="schedule" :style="scheduleStyle">
+                        <div class="schedule-header">
+                            <div class="head-cell time-head"></div>
+                            <div class="head-cell" v-for="d in dayLabels" :key="d">{{ d }}</div>
+                        </div>
+
+                        <div class="schedule-body">
+                            <div class="time-col">
+                                <div class="time-label" v-for="t in hourTicks" :key="t" :style="timeLabelStyle(t)">
+                                    {{ formatHHMM(t) }}
+                                </div>
+                            </div>
+
+                            <div class="day-col" v-for="dayIndex in 7" :key="dayIndex">
+                                <el-card
+                                    v-for="course in coursesForDay(dayIndex - 1)"
+                                    :key="course.id"
+                                    shadow="never"
+                                    class="course-card"
+                                    :body-style="{ padding: '6px 8px' }"
+                                    :style="courseCardStyle(course)"
+                                    @click.stop="openEdit(course)"
+                                >
+                                    <div class="course-code">{{ course.course_code || '' }}</div>
+                                    <div class="course-text">{{ course.course_name || '' }}</div>
+                                    <div class="course-text">{{ course.venue || '' }}</div>
+                                </el-card>
+                            </div>
+                        </div>
+                    </div>
+                </el-scrollbar>
             </div>
         </el-card>
 
@@ -141,7 +289,7 @@
     <script src="/vendor/vue/vue.global.prod.js"></script>
     <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        const { createApp, nextTick } = Vue;
+        const { createApp } = Vue;
 
         const getSessionFromCookie = () => {
             const cookies = document.cookie.split('; ');
@@ -159,6 +307,28 @@
             const [h, m] = hhmm.split(':').map(x => parseInt(x, 10));
             if (Number.isNaN(h) || Number.isNaN(m)) return null;
             return h * 60 + m;
+        }
+
+        function parseHexColorToRgb(hex) {
+            if (!hex || typeof hex !== 'string') return null;
+            const normalized = hex.trim();
+            if (!normalized.startsWith('#')) return null;
+            const raw = normalized.slice(1);
+            if (raw.length === 3) {
+                const r = parseInt(raw[0] + raw[0], 16);
+                const g = parseInt(raw[1] + raw[1], 16);
+                const b = parseInt(raw[2] + raw[2], 16);
+                if ([r, g, b].some(Number.isNaN)) return null;
+                return { r, g, b };
+            }
+            if (raw.length === 6) {
+                const r = parseInt(raw.slice(0, 2), 16);
+                const g = parseInt(raw.slice(2, 4), 16);
+                const b = parseInt(raw.slice(4, 6), 16);
+                if ([r, g, b].some(Number.isNaN)) return null;
+                return { r, g, b };
+            }
+            return null;
         }
 
         createApp({
@@ -192,24 +362,102 @@
                         is_active: true,
                         day: null
                     },
-                    canvasMeta: {
+                    scheduleMeta: {
                         timeColumnWidth: 50,
-                        hours: 24,
-                        rowHeight: 0,
-                        canvasWidth: 1400,
-                        canvasHeight: 1200,
-                        adjustedColumnWidth: 0
+                        rowHeight: 100,
+                        defaultStartMin: 0,
+                        defaultEndMin: 24 * 60
                     }
                 };
             },
             computed: {
                 dialogTitle() {
                     return this.form && this.form.id ? '编辑课程' : '添加课程';
+                },
+                dayLabels() {
+                    return this.dayOptions.map(d => d.label);
+                },
+                scheduleRange() {
+                    const minutes = [];
+                    for (const c of (this.courses || [])) {
+                        const s = parseTimeToMinutes(c.start_time);
+                        const e = parseTimeToMinutes(c.end_time);
+                        if (s == null || e == null) continue;
+                        minutes.push({ s, e });
+                    }
+
+                    if (!minutes.length) {
+                        return {
+                            startMin: this.scheduleMeta.defaultStartMin,
+                            endMin: this.scheduleMeta.defaultEndMin
+                        };
+                    }
+
+                    let startMin = minutes[0].s;
+                    let endMin = minutes[0].e;
+                    for (const t of minutes) {
+                        startMin = Math.min(startMin, t.s);
+                        endMin = Math.max(endMin, t.e);
+                    }
+
+                    // 防御：确保至少有 60 分钟高度
+                    if (endMin <= startMin) {
+                        endMin = startMin + 60;
+                    }
+
+                    return { startMin, endMin };
+                },
+                hourTicks() {
+                    const { startMin, endMin } = this.scheduleRange;
+                    const first = Math.ceil(startMin / 60) * 60;
+                    const last = Math.floor(endMin / 60) * 60;
+                    if (last < first) return [];
+                    const n = Math.floor((last - first) / 60) + 1;
+                    return Array.from({ length: n }, (_, i) => first + i * 60);
+                },
+                gridOffsetPx() {
+                    // 让网格线对齐整点：第一条线出现在“下一个整点”的位置
+                    const { startMin } = this.scheduleRange;
+                    const minutesToNextHour = (60 - (startMin % 60)) % 60;
+                    return (minutesToNextHour / 60) * this.scheduleMeta.rowHeight;
+                },
+                scheduleHeight() {
+                    const { startMin, endMin } = this.scheduleRange;
+                    const totalMin = Math.max(0, endMin - startMin);
+                    const h = (totalMin / 60) * this.scheduleMeta.rowHeight;
+                    return Math.max(this.scheduleMeta.rowHeight, Math.round(h));
+                },
+                scheduleStyle() {
+                    const timeCol = `${this.scheduleMeta.timeColumnWidth}px`;
+                    const rowH = `${this.scheduleMeta.rowHeight}px`;
+                    const bodyH = `${this.scheduleHeight}px`;
+                    return {
+                        '--time-col-w': timeCol,
+                        '--row-h': rowH,
+                        '--body-h': bodyH,
+                        '--grid-offset-y': `${this.gridOffsetPx}px`
+                    };
                 }
             },
             methods: {
                 goBack() {
                     window.location.href = '/dash.html';
+                },
+                formatHour(h) {
+                    const hh = String(h).padStart(2, '0');
+                    return hh;
+                },
+                formatHHMM(totalMinutes) {
+                    const m = ((totalMinutes % 60) + 60) % 60;
+                    const h = Math.floor(totalMinutes / 60);
+                    const hh = String(((h % 24) + 24) % 24).padStart(2, '0');
+                    const mm = String(m).padStart(2, '0');
+                    return `${hh}:${mm}`;
+                },
+                timeLabelStyle(tickMin) {
+                    const baseStart = this.scheduleRange.startMin;
+                    const top = ((tickMin - baseStart) / 60) * this.scheduleMeta.rowHeight;
+                    return { top: `${top}px` };
                 },
                 requireSessionOrRedirect() {
                     const session = getSessionFromCookie();
@@ -253,6 +501,42 @@
                     };
                     this.dialog.visible = true;
                 },
+                coursesForDay(dayIndex) {
+                    return (this.courses || []).filter(c => {
+                        const d = typeof c.day === 'number' ? c.day : parseInt(c.day, 10);
+                        return d === dayIndex;
+                    });
+                },
+                courseCardStyle(course) {
+                    const startMin = parseTimeToMinutes(course.start_time);
+                    const endMin = parseTimeToMinutes(course.end_time);
+                    if (startMin == null || endMin == null) return { display: 'none' };
+
+                    const durationMin = Math.max(0, endMin - startMin);
+                    const baseStart = this.scheduleRange.startMin;
+                    const top = ((startMin - baseStart) / 60) * this.scheduleMeta.rowHeight;
+                    const height = Math.max(22, (durationMin / 60) * this.scheduleMeta.rowHeight);
+
+                    const rgb = parseHexColorToRgb(course.course_color || '#409EFF') || { r: 64, g: 158, b: 255 };
+                    const borderColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`;
+                    const bgColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.30)`;
+
+                    if (course.is_active) {
+                        return {
+                            top: `${top}px`,
+                            height: `${height}px`,
+                            borderColor,
+                            backgroundColor: bgColor
+                        };
+                    }
+
+                    return {
+                        top: `${top}px`,
+                        height: `${height}px`,
+                        border: `2px solid ${borderColor}`,
+                        backgroundColor: 'transparent'
+                    };
+                },
                 async reload() {
                     await this.fetchCourses();
                 },
@@ -281,7 +565,6 @@
                                 ...c,
                                 day: typeof c.day === 'number' ? c.day : parseInt(c.day, 10)
                             }));
-                            this.render();
                         } else {
                             ElementPlus.ElMessage.error(data.message || '加载课程失败');
                         }
@@ -290,153 +573,6 @@
                         ElementPlus.ElMessage.error('加载课程失败，请重试');
                     } finally {
                         this.loading = false;
-                    }
-                },
-                initCanvas() {
-                    const canvas = this.$refs.canvas;
-                    if (!canvas) return;
-
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) return;
-
-                    const canvasWidth = canvas.width;
-                    const canvasHeight = canvas.height;
-                    const hours = this.canvasMeta.hours;
-                    const rowHeight = (canvasHeight / hours) * 2;
-                    const newCanvasHeight = rowHeight * hours;
-                    canvas.height = newCanvasHeight;
-
-                    const adjustedCanvasWidth = canvasWidth - this.canvasMeta.timeColumnWidth;
-                    const adjustedColumnWidth = adjustedCanvasWidth / 7;
-
-                    this.canvasMeta = {
-                        ...this.canvasMeta,
-                        rowHeight,
-                        canvasWidth,
-                        canvasHeight: newCanvasHeight,
-                        adjustedColumnWidth
-                    };
-
-                    const onClick = (event) => {
-                        const rect = canvas.getBoundingClientRect();
-                        const x = event.clientX - rect.left;
-                        const y = event.clientY - rect.top;
-                        const hit = this.hitTestCourse(x, y);
-                        if (hit) {
-                            this.openEdit(hit);
-                        }
-                    };
-
-                    canvas.addEventListener('click', onClick);
-                    this._canvasClickHandler = onClick;
-                },
-                hitTestCourse(x, y) {
-                    const {
-                        timeColumnWidth,
-                        adjustedColumnWidth,
-                        rowHeight
-                    } = this.canvasMeta;
-
-                    for (const course of this.courses) {
-                        const startMin = parseTimeToMinutes(course.start_time);
-                        const endMin = parseTimeToMinutes(course.end_time);
-                        if (startMin == null || endMin == null) continue;
-                        const dayIndex = typeof course.day === 'number' ? course.day : parseInt(course.day, 10);
-                        if (Number.isNaN(dayIndex)) continue;
-
-                        const startY = (startMin / 60) * rowHeight;
-                        const endY = (endMin / 60) * rowHeight;
-                        const left = timeColumnWidth + dayIndex * adjustedColumnWidth;
-                        const right = timeColumnWidth + (dayIndex + 1) * adjustedColumnWidth;
-
-                        if (x >= left && x <= right && y >= startY && y <= endY) {
-                            return course;
-                        }
-                    }
-
-                    return null;
-                },
-                render() {
-                    const canvas = this.$refs.canvas;
-                    if (!canvas) return;
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) return;
-
-                    const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-                    const hours = this.canvasMeta.hours;
-                    const canvasWidth = this.canvasMeta.canvasWidth;
-                    const canvasHeight = this.canvasMeta.canvasHeight;
-                    const rowHeight = this.canvasMeta.rowHeight;
-                    const timeColumnWidth = this.canvasMeta.timeColumnWidth;
-                    const adjustedColumnWidth = this.canvasMeta.adjustedColumnWidth;
-
-                    // Grid
-                    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-                    ctx.font = '14px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-
-                    for (let i = 0; i < hours; i++) {
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, i * rowHeight, timeColumnWidth, rowHeight);
-                        ctx.strokeStyle = '#ccc';
-                        ctx.strokeRect(0, i * rowHeight, timeColumnWidth, rowHeight);
-
-                        ctx.fillStyle = '#000';
-                        ctx.fillText(`${i.toString().padStart(2, '0')}:00`, timeColumnWidth / 2, i * rowHeight + rowHeight / 2);
-                    }
-
-                    for (let i = 0; i < 7; i++) {
-                        ctx.fillStyle = '#f0f0f0';
-                        ctx.fillRect(timeColumnWidth + i * adjustedColumnWidth, 0, adjustedColumnWidth, canvasHeight);
-                        ctx.strokeStyle = '#ccc';
-                        ctx.strokeRect(timeColumnWidth + i * adjustedColumnWidth, 0, adjustedColumnWidth, canvasHeight);
-                        ctx.fillStyle = '#000';
-                        ctx.fillText(days[i], timeColumnWidth + i * adjustedColumnWidth + adjustedColumnWidth / 2, 10);
-                    }
-
-                    for (let i = 0; i < hours; i++) {
-                        ctx.strokeStyle = '#ccc';
-                        ctx.beginPath();
-                        ctx.moveTo(timeColumnWidth, i * rowHeight);
-                        ctx.lineTo(canvasWidth, i * rowHeight);
-                        ctx.stroke();
-                    }
-
-                    // Courses
-                    for (const course of this.courses) {
-                        const startMin = parseTimeToMinutes(course.start_time);
-                        const endMin = parseTimeToMinutes(course.end_time);
-                        if (startMin == null || endMin == null) continue;
-
-                        const dayIndex = typeof course.day === 'number' ? course.day : parseInt(course.day, 10);
-                        if (Number.isNaN(dayIndex)) continue;
-
-                        const startY = (startMin / 60) * rowHeight;
-                        const endY = (endMin / 60) * rowHeight;
-                        const height = endY - startY;
-
-                        const left = timeColumnWidth + dayIndex * adjustedColumnWidth;
-
-                        if (course.is_active) {
-                            ctx.fillStyle = `${course.course_color}4D`;
-                            ctx.fillRect(left, startY, adjustedColumnWidth, height);
-                        } else {
-                            ctx.strokeStyle = `${course.course_color}1A`;
-                            ctx.lineWidth = 2;
-                            ctx.strokeRect(left, startY, adjustedColumnWidth, height);
-                        }
-
-                        ctx.fillStyle = '#000';
-                        ctx.textAlign = 'left';
-                        ctx.textBaseline = 'top';
-
-                        ctx.font = 'bold 12px Arial';
-                        ctx.fillText(course.course_code || '', left + 5, startY + 5);
-
-                        ctx.font = '12px Arial';
-                        ctx.fillText(course.course_name || '', left + 5, startY + 25);
-                        ctx.fillText(course.venue || '', left + 5, startY + 45);
                     }
                 },
                 async saveCourse() {
@@ -537,15 +673,9 @@
                 }
             },
             mounted() {
-                this.initCanvas();
                 this.fetchCourses();
             },
-            beforeUnmount() {
-                const canvas = this.$refs.canvas;
-                if (canvas && this._canvasClickHandler) {
-                    canvas.removeEventListener('click', this._canvasClickHandler);
-                }
-            }
+            beforeUnmount() {}
         }).use(ElementPlus).mount('#app');
     </script>
 </body>

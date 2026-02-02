@@ -133,6 +133,30 @@
             padding: 2px 8px;
             border-radius: 4px;
         }
+
+        .project-color-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            margin-right: 8px;
+            flex: 0 0 auto;
+        }
+
+        .count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 18px;
+            padding: 0 6px;
+            margin-left: 8px;
+            font-size: 12px;
+            line-height: 18px;
+            color: #fff;
+            background: #409eff;
+            border-radius: 999px;
+        }
         /* 底部悬浮菜单 */
         .float-menu {
             position: fixed;
@@ -148,6 +172,28 @@
         .empty-icon {
             font-size: 64px;
             margin-bottom: 16px;
+        }
+
+        /* “+”下拉菜单两栏布局 */
+        .plus-dropdown-menu {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(140px, 1fr));
+            column-gap: 8px;
+            row-gap: 4px;
+            min-width: 320px;
+        }
+        .plus-dropdown-menu .el-dropdown-menu__item {
+            white-space: nowrap;
+        }
+        .plus-dropdown-menu .el-dropdown-menu__item--divided {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 420px) {
+            .plus-dropdown-menu {
+                grid-template-columns: 1fr;
+                min-width: 220px;
+            }
         }
     </style>
 </head>
@@ -174,17 +220,37 @@
         <div class="main-content">
             <!-- 内容网格 -->
             <div class="content-grid">
-                <!-- 待办事项 -->
-                <div class="section-card">
+                <!-- 课表 -->
+                <div class="section-card" v-if="teachingStatus === '1' && courses.length > 0">
                     <div class="section-title">
-                        <span><i class="bi bi-check-circle section-icon"></i>待办事项 ({{ items.length }})</span>
-                        <el-button type="primary" size="small" @click="goToPage('/create/item.html')">
-                            <i class="bi bi-plus-lg"></i> 新建
+                        <span><i class="bi bi-calendar-week section-icon"></i>课表 <span class="count-badge">{{ courses.length }}</span></span>
+                        <el-button type="primary" size="small" @click="goToPage('/view/courses.html')">
+                            <i class="bi bi-gear"></i> 管理
                         </el-button>
                     </div>
-                    <div v-if="items.length === 0" class="empty-state">
-                        <div class="empty-icon"><i class="bi bi-inbox"></i></div>
-                        <div>暂无待办事项</div>
+                    <div v-for="course in courses" :key="course.id || (course.course_code + '-' + course.start_time + '-' + course.end_time)" class="item-card">
+                        <div class="item-title">
+                            <span style="font-weight:600; margin-right:10px;">{{ course.start_time }} - {{ course.end_time }}</span>
+                            <span
+                                v-if="course.course_code"
+                                class="item-tag"
+                                :style="{ backgroundColor: course.course_color || '#409eff', color: '#fff' }"
+                            >{{ course.course_code }}</span>
+                        </div>
+                        <div class="item-meta">
+                            <span>{{ course.course_name || '' }}</span>
+                            <span v-if="course.venue"><i class="bi bi-geo-alt"></i> {{ course.venue }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 待办事项 -->
+                <div class="section-card" v-if="items.length > 0">
+                    <div class="section-title">
+                        <span><i class="bi bi-check-circle section-icon"></i>待办事项 <span class="count-badge">{{ items.length }}</span></span>
+                        <el-button type="primary" size="small" @click="goToPage('/view/item.html')">
+                            <i class="bi bi-gear"></i> 管理
+                        </el-button>
                     </div>
                     <div v-for="item in items" :key="item.id" class="item-card" @click="goToPage('/view/item.html')">
                         <div class="item-title">{{ item.title }}</div>
@@ -198,16 +264,12 @@
                 </div>
 
                 <!-- 周期任务 -->
-                <div class="section-card">
+                <div class="section-card" v-if="cycles.length > 0">
                     <div class="section-title">
-                        <span><i class="bi bi-arrow-repeat section-icon"></i>周期任务 ({{ cycles.length }})</span>
-                        <el-button type="primary" size="small" @click="goToPage('/create/cycle.html')">
-                            <i class="bi bi-plus-lg"></i> 新建
+                        <span><i class="bi bi-arrow-repeat section-icon"></i>周期任务 <span class="count-badge">{{ cycles.length }}</span></span>
+                        <el-button type="primary" size="small" @click="goToPage('/view/cycle.html')">
+                            <i class="bi bi-gear"></i> 管理
                         </el-button>
-                    </div>
-                    <div v-if="cycles.length === 0" class="empty-state">
-                        <div class="empty-icon"><i class="bi bi-arrow-clockwise"></i></div>
-                        <div>暂无周期任务</div>
                     </div>
                     <div v-for="cycle in cycles" :key="cycle.id" class="item-card" @click="goToPage('/view/cycle.html')">
                         <div class="item-title">{{ cycle.title }}</div>
@@ -218,16 +280,12 @@
                 </div>
 
                 <!-- 续订提醒 -->
-                <div class="section-card">
+                <div class="section-card" v-if="renewals.length > 0">
                     <div class="section-title">
-                        <span><i class="bi bi-bell section-icon"></i>续订提醒 ({{ renewals.length }})</span>
-                        <el-button type="primary" size="small" @click="goToPage('/create/renewal.html')">
-                            <i class="bi bi-plus-lg"></i> 新建
+                        <span><i class="bi bi-bell section-icon"></i>续订提醒 <span class="count-badge">{{ renewals.length }}</span></span>
+                        <el-button type="primary" size="small" @click="goToPage('/view/renewal.html')">
+                            <i class="bi bi-gear"></i> 管理
                         </el-button>
-                    </div>
-                    <div v-if="renewals.length === 0" class="empty-state">
-                        <div class="empty-icon"><i class="bi bi-bell-slash"></i></div>
-                        <div>暂无续订提醒</div>
                     </div>
                     <div v-for="renewal in renewals" :key="renewal.id" class="item-card" @click="goToPage('/view/renewal.html')">
                         <div class="item-title">{{ renewal.name }}</div>
@@ -238,23 +296,23 @@
                 </div>
 
                 <!-- 项目 -->
-                <div class="section-card">
+                <div class="section-card" v-if="projects.length > 0">
                     <div class="section-title">
-                        <span><i class="bi bi-folder section-icon"></i>项目 ({{ projects.length }})</span>
-                        <el-button type="primary" size="small" @click="goToPage('/create/project.html')">
-                            <i class="bi bi-plus-lg"></i> 新建
+                        <span><i class="bi bi-folder section-icon"></i>项目 <span class="count-badge">{{ projects.length }}</span></span>
+                        <el-button type="primary" size="small" @click="goToPage('/view/project.html')">
+                            <i class="bi bi-gear"></i> 管理
                         </el-button>
                     </div>
-                    <div v-if="projects.length === 0" class="empty-state">
-                        <div class="empty-icon"><i class="bi bi-folder2-open"></i></div>
-                        <div>暂无项目</div>
-                    </div>
-                    <div v-for="project in projects" :key="project.id" class="item-card" @click="goToProject(project.id)">
-                        <div class="item-title">{{ project.name }}</div>
-                        <div class="item-meta">
-                            <el-tag size="small" :type="project.is_active ? 'success' : 'info'">
-                                {{ project.is_active ? '进行中' : '已完成' }}
-                            </el-tag>
+                    <div
+                        v-for="project in projects"
+                        :key="project.id"
+                        class="item-card"
+                        :style="{ backgroundColor: projectParticipation[project.id] ? '#cce5ff' : 'transparent' }"
+                        @click="goToProject(project.id)"
+                    >
+                        <div class="item-title" style="display:flex; align-items:center;">
+                            <span class="project-color-indicator" :style="{ backgroundColor: project.color || '#409eff' }"></span>
+                            <span>{{ project.name }}</span>
                         </div>
                     </div>
                 </div>
@@ -268,9 +326,12 @@
                     <i class="bi bi-plus-lg" style="font-size: 20px;"></i>
                 </el-button>
                 <template #dropdown>
-                    <el-dropdown-menu>
+                    <el-dropdown-menu class="plus-dropdown-menu">
                         <el-dropdown-item @click="goToPage('/view/item.html')">
                             <i class="bi bi-list-check"></i> 事项
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/courses.html')">
+                            <i class="bi bi-calendar-week"></i> 课程表
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/cycle.html')">
                             <i class="bi bi-arrow-repeat"></i> 周期
@@ -286,6 +347,9 @@
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/checklists.html')">
                             <i class="bi bi-card-checklist"></i> 检查清单
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/about.html')">
+                            <i class="bi bi-info-circle"></i> 关于
                         </el-dropdown-item>
                         <el-dropdown-item divided @click="goToPage('/settings.html')">
                             <i class="bi bi-gear"></i> 设置
@@ -338,6 +402,9 @@
                 const renewals = ref([]);
                 const projects = ref([]);
                 const categories = ref([]);
+                const courses = ref([]);
+                const teachingStatus = ref('0');
+                const projectParticipation = ref({});
 
                 // 格式化日期显示
                 const formattedDate = computed(() => {
@@ -499,10 +566,141 @@
                         const data = await response.json();
                         if (data.success) {
                             const list = Array.isArray(data.projects) ? data.projects : [];
-                            projects.value = list.filter(p => p && p.is_active);
+                            projects.value = list.filter(p => p);
                         }
                     } catch (error) {
                         console.error('Error loading projects:', error);
+                    }
+                };
+
+                // 加载指定日期项目参与情况（旧版首页逻辑迁移）
+                const loadProjectParticipation = async () => {
+                    const session = getSession();
+                    if (!session) {
+                        projectParticipation.value = {};
+                        return;
+                    }
+
+                    const dateStr = formattedDate.value; // YYYY-MM-DD
+                    const list = Array.isArray(projects.value) ? projects.value : [];
+                    if (list.length === 0) {
+                        projectParticipation.value = {};
+                        return;
+                    }
+
+                    const pairs = await Promise.all(
+                        list.map(async (project) => {
+                            try {
+                                const response = await fetch(`/api/getProjectRecords/${project.id}`, {
+                                    method: 'GET',
+                                    headers: { 'Content-Type': 'application/json', 'session': session }
+                                });
+                                if (!response.ok) {
+                                    return [project.id, false];
+                                }
+                                const data = await response.json();
+                                if (!data || !data.success || !Array.isArray(data.records)) {
+                                    return [project.id, false];
+                                }
+                                const has = data.records.some((record) => {
+                                    const ts = String(record.timestamp || '');
+                                    const ymd = ts.includes(' ') ? ts.split(' ')[0] : ts.split('T')[0];
+                                    return ymd === dateStr;
+                                });
+                                return [project.id, has];
+                            } catch (error) {
+                                console.error('Error loading project records:', error);
+                                return [project.id, false];
+                            }
+                        })
+                    );
+
+                    projectParticipation.value = Object.fromEntries(pairs);
+                };
+
+                // 获取授课状态（旧版首页逻辑迁移）
+                const loadTeachingStatus = async () => {
+                    const session = getSession();
+                    if (!session) {
+                        teachingStatus.value = '0';
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/getTeachingStatus', {
+                            method: 'GET',
+                            headers: { 'Content-Type': 'application/json', 'session': session }
+                        });
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+                        const data = await response.json();
+                        teachingStatus.value = data && data.success ? String(data.teaching ?? '0') : '0';
+                    } catch (error) {
+                        console.error('Error loading teaching status:', error);
+                        teachingStatus.value = '0';
+                    }
+                };
+
+                // 加载当天课表（按旧版：按星期过滤；若为今天过滤已结束课程）
+                const loadCourses = async () => {
+                    const session = getSession();
+                    if (!session) {
+                        courses.value = [];
+                        return;
+                    }
+
+                    // 先检查授课状态
+                    await loadTeachingStatus();
+                    if (teachingStatus.value !== '1') {
+                        courses.value = [];
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch('/api/getCourses', {
+                            method: 'GET',
+                            headers: { 'Content-Type': 'application/json', 'session': session }
+                        });
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
+
+                        const data = await response.json();
+                        if (!data || !data.success) {
+                            courses.value = [];
+                            return;
+                        }
+
+                        const list = Array.isArray(data.courses) ? data.courses : [];
+                        const date = currentDate.value;
+                        const dayOfWeek = date.getDay();
+
+                        const filtered = list
+                            .filter(c => c && c.is_active && c.day === dayOfWeek)
+                            .sort((a, b) => {
+                                const [ah, am] = String(a.start_time || '00:00').split(':').map(Number);
+                                const [bh, bm] = String(b.start_time || '00:00').split(':').map(Number);
+                                return (ah - bh) || (am - bm);
+                            });
+
+                        const now = new Date();
+                        const isToday = date.toDateString() === now.toDateString();
+                        const display = isToday
+                            ? filtered.filter(c => {
+                                const [eh, em] = String(c.end_time || '00:00').split(':').map(Number);
+                                const endTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em, 0, 0);
+                                return endTime > now;
+                            })
+                            : filtered;
+
+                        courses.value = display;
+                    } catch (error) {
+                        console.error('Error loading courses:', error);
+                        courses.value = [];
+                        ElMessage.error('加载课程失败');
                     }
                 };
 
@@ -513,8 +711,12 @@
                         loadItems(),
                         loadCycles(),
                         loadRenewals(),
-                        loadProjects()
+                        loadProjects(),
+                        loadCourses()
                     ]);
+
+                    // 依赖 projects 已加载
+                    await loadProjectParticipation();
                 };
 
                 // 切换日期
@@ -607,6 +809,9 @@
                     cycles,
                     renewals,
                     projects,
+                    courses,
+                    teachingStatus,
+                    projectParticipation,
                     changeDate,
                     showDatePicker,
                     onDateChange,

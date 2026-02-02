@@ -44,8 +44,8 @@
                             <el-input v-model="form.color" style="max-width: 180px;" placeholder="#RRGGBB" />
                         </div>
                     </el-form-item>
-                    <el-form-item label="备注">
-                        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="可选" />
+                    <el-form-item label="备注" prop="note">
+                        <el-input v-model="form.note" type="textarea" :rows="3" placeholder="必填" />
                     </el-form-item>
 
                     <el-form-item>
@@ -73,9 +73,16 @@
                     note: ''
                 });
 
+                const requiredTrimValidator = (message) => (rule, value, callback) => {
+                    const v = String(value ?? '').trim();
+                    if (!v) return callback(new Error(message));
+                    callback();
+                };
+
                 const rules = {
                     name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
-                    color: [{ required: true, message: '请选择颜色', trigger: 'change' }]
+                    color: [{ required: true, message: '请选择颜色', trigger: 'change' }],
+                    note: [{ validator: requiredTrimValidator('请输入备注'), trigger: ['blur', 'change'] }]
                 };
 
                 const getSession = () => {
@@ -89,6 +96,10 @@
 
                 const submit = async () => {
                     if (!formRef.value) return;
+
+                    // 与后端约束对齐：备注不允许为空或全空格
+                    form.note = String(form.note ?? '').trim();
+
                     await formRef.value.validate(async (valid) => {
                         if (!valid) return;
                         const session = getSession();
