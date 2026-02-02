@@ -146,12 +146,15 @@
     <div id="app">
         <!-- 顶部导航栏 -->
         <div class="top-header">
-            <div class="header-title">我的日程</div>
+            <div class="header-title"></div>
             <div class="header-date" @click="showDatePicker">
                 <i class="bi bi-calendar3"></i>
                 {{ formattedDate }}
             </div>
             <div class="header-actions">
+                <el-button circle @click="goToPage('/settings.html')" title="设置">
+                    <i class="bi bi-gear"></i>
+                </el-button>
                 <el-button circle @click="logout">
                     <i class="bi bi-box-arrow-right"></i>
                 </el-button>
@@ -231,7 +234,7 @@
                     <div v-for="renewal in renewals" :key="renewal.id" class="item-card" @click="goToPage('/view/renewal.html')">
                         <div class="item-title">{{ renewal.name }}</div>
                         <div class="item-meta">
-                            <span><i class="bi bi-calendar-check"></i> {{ renewal.next_renewal_date }}</span>
+                            <span><i class="bi bi-calendar-check"></i> {{ (renewal.expiry_date || '').split('T')[0] || '--' }}</span>
                         </div>
                     </div>
                 </div>
@@ -269,22 +272,25 @@
                 <template #dropdown>
                     <el-dropdown-menu>
                         <el-dropdown-item @click="goToPage('/view/item.html')">
-                            <i class="bi bi-list-check"></i> 查看事项
+                            <i class="bi bi-list-check"></i> 事项
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/cycle.html')">
-                            <i class="bi bi-arrow-repeat"></i> 查看周期
+                            <i class="bi bi-arrow-repeat"></i> 周期
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/renewal.html')">
-                            <i class="bi bi-bell"></i> 查看续订
+                            <i class="bi bi-bell"></i> 续订
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/project.html')">
-                            <i class="bi bi-folder"></i> 查看项目
+                            <i class="bi bi-folder"></i> 项目
                         </el-dropdown-item>
                         <el-dropdown-item divided @click="goToPage('/view/category.html')">
                             <i class="bi bi-tags"></i> 管理分类
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/checklists.html')">
                             <i class="bi bi-card-checklist"></i> 检查清单
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/settings.html')">
+                            <i class="bi bi-gear"></i> 设置
                         </el-dropdown-item>
                         <el-dropdown-item divided @click="goToPage('/tool/farm.html')">
                             <i class="bi bi-camera"></i> 农场监控
@@ -393,7 +399,7 @@
                     try {
                         const response = await fetch('/api/getItems', {
                             method: 'GET',
-                            headers: { 'Session': session }
+                            headers: { 'session': session }
                         });
                         const data = await response.json();
                         if (data.success) {
@@ -418,9 +424,13 @@
                         const dateStr = formattedDate.value.replace(/-/g, '');
                         const response = await fetch('/api/getTodayCycles', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 'Content-Type': 'application/json', 'session': session },
                             body: JSON.stringify({ session, date: dateStr })
                         });
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
                         const data = await response.json();
                         if (data.success) {
                             cycles.value = data.cycles || [];
@@ -434,14 +444,46 @@
                 const loadRenewals = async () => {
                     const session = getSession();
                     try {
-                        const response = await fetch('/api/getTodayRenewals', {
+                        const response = await fetch('/api/getAllRenewals', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ session })
                         });
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
                         const data = await response.json();
                         if (data.success) {
-                            renewals.value = data.renewals || [];
+                            const all = Array.isArray(data.data) ? data.data : [];
+                            const selected = formattedDate.value;
+
+                            const parseYmd = (ymd) => {
+                                if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
+                                const [y, m, d] = ymd.split('-').map(n => parseInt(n, 10));
+                                return new Date(y, m - 1, d);
+                            };
+
+                            const addDays = (date, days) => {
+                                const d = new Date(date.getTime());
+                                d.setDate(d.getDate() + days);
+                                return d;
+                            };
+
+                            const selectedDate = parseYmd(selected);
+                            if (!selectedDate) {
+                                renewals.value = [];
+                                return;
+                            }
+
+                            renewals.value = all.filter(r => {
+                                const expiryYmd = (r.expiry_date || '').split('T')[0];
+                                const expiryDate = parseYmd(expiryYmd);
+                                if (!expiryDate) return false;
+                                const reminderDays = Number(r.reminder_days || 0);
+                                const startDate = addDays(expiryDate, -reminderDays);
+                                return selectedDate >= startDate && selectedDate <= expiryDate;
+                            });
                         }
                     } catch (error) {
                         console.error('Error loading renewals:', error);
@@ -453,13 +495,17 @@
                     const session = getSession();
                     try {
                         const response = await fetch('/api/getProjects', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ session })
+                            method: 'GET',
+                            headers: { 'Content-Type': 'application/json', 'session': session }
                         });
+                        if (response.status === 401) {
+                            window.location.href = '/login.html';
+                            return;
+                        }
                         const data = await response.json();
                         if (data.success) {
-                            projects.value = data.projects.filter(p => p.is_active) || [];
+                            const list = Array.isArray(data.projects) ? data.projects : [];
+                            projects.value = list.filter(p => p && p.is_active);
                         }
                     } catch (error) {
                         console.error('Error loading projects:', error);

@@ -47,7 +47,7 @@
             <el-card shadow="hover" style="border-radius: 12px;" v-loading="loading">
                 <el-empty v-if="!loading && checklists.length === 0" description="暂无检查表" />
 
-                <el-row v-else :gutter="12">
+                <el-row v-if="checklists.length > 0" :gutter="12">
                     <el-col v-for="c in checklists" :key="c.id" :xs="24" :sm="12" :md="8" style="margin-bottom: 12px;">
                         <el-card class="checklist-card" shadow="hover" @click="openChecklist(c.id)" style="border-radius: 12px;">
                             <div style="display:flex; align-items:center; justify-content:space-between; gap: 12px;">

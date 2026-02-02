@@ -72,9 +72,9 @@
                     </div>
                 </template>
 
-                <el-empty v-else-if="!loading && items.length === 0" description="该检查表暂无检查项" />
+                <el-empty v-if="!loading && !allCompleted && items.length === 0" description="该检查表暂无检查项" />
 
-                <div v-else>
+                <div v-if="!loading && !allCompleted && items.length > 0">
                     <div v-for="it in items" :key="it.id" style="margin-bottom: 10px;">
                         <el-card class="item-card" :class="{ checked: !!it.checked }" shadow="never" style="border-radius: 12px;">
                             <div class="item-row">

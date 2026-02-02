@@ -45,7 +45,7 @@
                 <template v-if="error">
                     <el-alert :title="error" type="error" show-icon />
                 </template>
-                <template v-else>
+                <template v-if="!error">
                     <div style="display:flex; align-items: baseline; justify-content: center; gap: 10px; padding: 18px 0;">
                         <div class="big-minutes">{{ minutes }}</div>
                         <div style="font-size: 18px; font-weight: 600; color: #303133;">分钟</div>

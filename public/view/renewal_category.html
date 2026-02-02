@@ -47,7 +47,7 @@
 
             <el-card shadow="hover" style="border-radius: 12px;">
                 <el-empty v-if="!loading && categories.length === 0" description="暂无续费分类" />
-                <el-collapse v-else v-model="activeIds" @change="onCollapseChange">
+                <el-collapse v-if="categories.length > 0" v-model="activeIds" @change="onCollapseChange">
                     <el-collapse-item v-for="c in categories" :key="c.id" :name="String(c.id)">
                         <template #title>
                             <div style="display:flex; align-items:center; gap: 10px; width: 100%;">
@@ -65,7 +65,7 @@
                         </div>
 
                         <el-skeleton v-if="itemsLoading[c.id]" :rows="3" animated />
-                        <el-table v-else :data="itemsByCategory[c.id] || []" style="width: 100%" size="small" empty-text="该分类下暂无续费项目">
+                        <el-table v-if="!itemsLoading[c.id]" :data="itemsByCategory[c.id] || []" style="width: 100%" size="small" empty-text="该分类下暂无续费项目">
                             <el-table-column label="名称" min-width="180">
                                 <template #default="{ row }">
                                     {{ row.name || row.title || '--' }}

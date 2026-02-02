@@ -65,13 +65,13 @@
                         </el-form-item>
                     </template>
 
-                    <template v-else-if="form.cycle === 'monthly'">
+                    <template v-if="form.cycle === 'monthly'">
                         <el-form-item label="每月第几天" prop="monthlyDay">
                             <el-input-number v-model="form.monthlyDay" :min="1" :max="31" />
                         </el-form-item>
                     </template>
 
-                    <template v-else-if="form.cycle === 'monthly_last'">
+                    <template v-if="form.cycle === 'monthly_last'">
                         <el-form-item label="每月倒数第" prop="monthlyLastDay">
                             <div style="display:flex; align-items:center; gap: 10px;">
                                 <el-input-number v-model="form.monthlyLastDay" :min="1" :max="31" />

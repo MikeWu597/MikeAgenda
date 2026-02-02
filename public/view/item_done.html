@@ -88,9 +88,9 @@
             </template>
 
             <div v-loading="loading">
-                <el-empty v-if="!items.length" description="暂无已完成事项" />
+                <el-empty v-if="!loading && !items.length" description="暂无已完成事项" />
 
-                <el-collapse v-else v-model="openIds">
+                <el-collapse v-if="items.length" v-model="openIds">
                     <el-collapse-item v-for="it in items" :key="String(it.id)" :name="String(it.id)">
                         <template #title>
                             <div style="display:flex; align-items:center; justify-content:space-between; width: 100%; gap: 12px;">
@@ -183,7 +183,7 @@
             <div v-if="!processes.length">
                 <el-empty description="暂无流程" />
             </div>
-            <div v-else>
+            <div v-if="processes.length">
                 <div
                     v-for="p in processes"
                     :key="p._key"

@@ -45,7 +45,7 @@
                     <el-skeleton :rows="3" animated />
                 </template>
 
-                <template v-else>
+                <template v-if="!loading">
                     <el-descriptions :column="1" border>
                         <el-descriptions-item label="内存占用">
                             {{ status.memoryUsage }} MB

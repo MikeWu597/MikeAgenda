@@ -94,7 +94,7 @@
             <div v-loading="loading">
                 <el-empty v-if="!checklists.length" description="暂无检查表" />
 
-                <div v-else>
+                <div v-if="checklists.length">
                     <div
                         v-for="c in checklists"
                         :key="c.id"
@@ -165,7 +165,7 @@
             <div v-loading="itemsDialog.loading">
                 <el-empty v-if="!items.length" description="该检查表暂无检查项" />
 
-                <div v-else>
+                <div v-if="items.length">
                     <div
                         v-for="it in items"
                         :key="it.id"

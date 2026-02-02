@@ -93,7 +93,7 @@
                     <span>
                         <span class="info-label">电压：</span>
                         <el-tag v-if="voltage" type="success">{{ voltage }}</el-tag>
-                        <el-tag v-else type="info">--</el-tag>
+                        <el-tag v-if="!voltage" type="info">--</el-tag>
                     </span>
                     <span>
                         <span class="info-label">采集时间：</span>

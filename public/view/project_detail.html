@@ -179,7 +179,7 @@
             <el-card shadow="hover" style="border-radius: 12px;" v-loading="loadingRecords">
                 <el-empty v-if="!loadingRecords && records.length === 0" description="暂无参与记录" />
 
-                <div v-else class="months-container">
+                <div v-if="records.length > 0" class="months-container">
                     <div v-for="m in months" :key="m.key" class="month-card">
                         <div class="month-header">{{ m.title }}</div>
                         <div class="month-grid">
@@ -188,13 +188,13 @@
                             <div v-for="cell in m.cells" :key="cell.key">
                                 <div v-if="cell.type === 'empty'" class="calendar-day empty"></div>
 
-                                <template v-else>
+                                <template v-if="cell.type !== 'empty'">
                                     <template v-if="cell.isFuture">
                                         <div class="calendar-day future-day">
                                             <div class="day-number">{{ cell.day }}</div>
                                         </div>
                                     </template>
-                                    <template v-else>
+                                    <template v-if="!cell.isFuture">
                                         <el-popover trigger="hover" placement="top" width="220">
                                             <template #reference>
                                                 <div :class="cell.className">
@@ -211,7 +211,7 @@
                                                         {{ idx + 1 }}. {{ formatTime(r.timestamp) }}
                                                     </div>
                                                 </div>
-                                                <div v-else class="muted">无参与记录</div>
+                                                <div v-if="!(cell.records && cell.records.length)" class="muted">无参与记录</div>
                                             </div>
                                         </el-popover>
                                     </template>

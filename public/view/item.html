@@ -113,7 +113,7 @@
                 <div style="margin-top: 16px; color: #909399;">加载中...</div>
             </div>
 
-            <div v-else-if="items.length === 0" style="text-align: center; padding: 60px; background: white; border-radius: 12px;">
+            <div v-if="!loading && items.length === 0" style="text-align: center; padding: 60px; background: white; border-radius: 12px;">
                 <div style="font-size: 64px; color: #dcdfe6; margin-bottom: 16px;">
                     <i class="bi bi-inbox"></i>
                 </div>
@@ -123,7 +123,7 @@
                 </el-button>
             </div>
 
-            <div v-else class="items-container">
+            <div v-if="!loading && items.length > 0" class="items-container">
                 <div v-for="item in items" :key="item.id" class="item-card">
                     <div class="item-header">
                         <div class="item-title">{{ item.title }}</div>
