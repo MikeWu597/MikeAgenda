@@ -155,7 +155,22 @@
             <div v-if="!loading && items.length > 0" class="items-container">
                 <div v-for="item in pagedItems" :key="item.id" class="item-card">
                     <div class="item-header">
-                        <div class="item-title">{{ item.title }}</div>
+                        <div class="item-title" style="display:flex; align-items:center; gap: 8px; min-width: 0;">
+                            <span v-if="item.categoryTags && item.categoryTags.length" style="display:inline-flex; gap: 6px; flex-wrap: wrap;">
+                                <el-tag
+                                    v-for="cat in item.categoryTags"
+                                    :key="String(cat.id)"
+                                    size="small"
+                                    effect="dark"
+                                    :style="{ backgroundColor: cat.color || '#409EFF', borderColor: cat.color || '#409EFF' }"
+                                >
+                                    {{ cat.name }}
+                                </el-tag>
+                            </span>
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ item.title }}
+                            </span>
+                        </div>
                         <el-dropdown @command="handleCommand">
                             <el-button text circle>
                                 <i class="bi bi-three-dots-vertical"></i>
@@ -190,16 +205,6 @@
                         <div v-if="item.planned_time" class="meta-item">
                             <i class="bi bi-clock"></i>
                             <span>计划: {{ item.planned_time }}</span>
-                        </div>
-                        <div v-if="item.categoryNames && item.categoryNames.length">
-                            <el-tag 
-                                v-for="(catName, idx) in item.categoryNames" 
-                                :key="idx"
-                                size="small"
-                                style="margin-right: 4px;"
-                            >
-                                {{ catName }}
-                            </el-tag>
                         </div>
                     </div>
                 </div>
@@ -359,14 +364,16 @@
                             // 后端已过滤：done = 0 AND archived = 0
                             items.value = Array.isArray(data.items) ? data.items : [];
                             
-                            // 为每个item添加分类名称
+                            // 为每个 item 添加分类（含颜色）
                             items.value.forEach(item => {
                                 if (item.category) {
                                     const catIds = safeJsonParse(item.category, []);
-                                    item.categoryNames = catIds.map(id => {
+                                    item.categoryTags = catIds.map(id => {
                                         const cat = categories.value.find(c => String(c.id) === String(id));
-                                        return cat ? cat.name : '';
-                                    }).filter(Boolean);
+                                        return cat
+                                            ? { id: String(cat.id), name: cat.name, color: cat.color }
+                                            : { id: String(id), name: '未知分类', color: '#909399' };
+                                    });
                                 }
                             });
                         } else if (response.status === 401) {

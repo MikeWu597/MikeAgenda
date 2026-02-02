@@ -297,12 +297,24 @@
                         </el-button>
                     </div>
                     <div v-for="item in items" :key="item.id" class="item-card" @click="goToPage('/view/item.html')">
-                        <div class="item-title">{{ item.title }}</div>
+                        <div class="item-title" style="display:flex; align-items:center; gap: 8px; min-width: 0;">
+                            <span v-if="item.categoryTags && item.categoryTags.length" style="display:inline-flex; gap: 6px; flex-wrap: wrap;">
+                                <el-tag
+                                    v-for="c in item.categoryTags"
+                                    :key="String(c.id)"
+                                    size="small"
+                                    effect="dark"
+                                    :style="{ backgroundColor: c.color || '#409EFF', borderColor: c.color || '#409EFF' }"
+                                >
+                                    {{ c.name }}
+                                </el-tag>
+                            </span>
+                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ item.title }}
+                            </span>
+                        </div>
                         <div class="item-meta">
                             <span v-if="item.deadline"><i class="bi bi-alarm"></i> {{ item.deadline }}</span>
-                            <el-tag v-if="item.categoryName" size="small" :type="getCategoryType(item.categoryId)">
-                                {{ item.categoryName }}
-                            </el-tag>
                         </div>
                     </div>
                 </div>
@@ -470,6 +482,16 @@
                     return true;
                 };
 
+                const safeJsonParse = (value, fallback) => {
+                    try {
+                        if (!value) return fallback;
+                        if (typeof value !== 'string') return fallback;
+                        return JSON.parse(value);
+                    } catch {
+                        return fallback;
+                    }
+                };
+
                 // 加载分类
                 const loadCategories = async () => {
                     const session = getSession();
@@ -501,6 +523,21 @@
                             const dateStr = formattedDate.value;
                             items.value = data.items.filter(item => {
                                 return item.deadline === dateStr || item.planned_time?.startsWith(dateStr);
+                            });
+
+                            // 为首页待办事项补齐分类（含颜色）
+                            const cats = Array.isArray(categories.value) ? categories.value : [];
+                            items.value.forEach((item) => {
+                                const raw = item && item.category;
+                                const ids = Array.isArray(raw) ? raw : safeJsonParse(raw, []);
+                                const normalizedIds = (ids || []).map(x => String(x));
+
+                                item.categoryTags = normalizedIds.map((id) => {
+                                    const c = cats.find(x => String(x.id) === String(id));
+                                    return c
+                                        ? { id: String(c.id), name: c.name, color: c.color }
+                                        : { id: String(id), name: '未知分类', color: '#909399' };
+                                });
                             });
                         } else if (response.status === 401) {
                             window.location.href = '/login.html';
@@ -739,8 +776,9 @@
 
                 // 加载所有数据
                 const loadAllData = async () => {
+                    await loadCategories();
+
                     await Promise.all([
-                        loadCategories(),
                         loadItems(),
                         loadCycles(),
                         loadRenewals(),
@@ -767,12 +805,6 @@
                         currentDate.value = date;
                         loadAllData();
                     }
-                };
-
-                // 获取分类类型
-                const getCategoryType = (categoryId) => {
-                    const types = ['', 'success', 'info', 'warning', 'danger'];
-                    return types[categoryId % types.length];
                 };
 
                 // 页面跳转
@@ -840,7 +872,6 @@
                     projectParticipation,
                     changeDate,
                     onDateChange,
-                    getCategoryType,
                     goToPage,
                     goToProject,
                     openFoodOrder,
