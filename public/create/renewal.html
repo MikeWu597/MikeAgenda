@@ -46,7 +46,11 @@
                         <el-select v-model="form.categoryId" placeholder="请选择分类" style="width: 100%;" filterable>
                             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="String(c.id)" />
                         </el-select>
-                        <div class="hint" style="margin-top: 6px;">如果没有分类，请先到“续费分类”创建。</div>
+                        <div class="hint" style="margin-top: 6px; display:flex; gap: 10px; align-items:center; flex-wrap: wrap;">
+                            <span>如果没有分类，请先创建。</span>
+                            <el-button link type="primary" @click="goCreateCategory">新建分类</el-button>
+                            <el-button link type="primary" @click="goManageCategory">管理分类</el-button>
+                        </div>
                     </el-form-item>
                     <el-form-item label="下次续费" prop="expiryDate">
                         <el-date-picker
@@ -181,9 +185,17 @@
                     window.location.href = '/dash.html';
                 };
 
+                const goCreateCategory = () => {
+                    window.location.href = '/create/renewal_category.html';
+                };
+
+                const goManageCategory = () => {
+                    window.location.href = '/view/renewal_category.html';
+                };
+
                 onMounted(loadCategories);
 
-                return { formRef, form, rules, loading, categories, submit, goBack };
+                return { formRef, form, rules, loading, categories, submit, goBack, goCreateCategory, goManageCategory };
             }
         }).use(ElementPlus).mount('#app');
     </script>

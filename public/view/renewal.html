@@ -32,7 +32,15 @@
                     <i class="bi bi-arrow-left"></i>
                 </el-button>
                 <div class="page-title">续费管理</div>
-                <div style="margin-left:auto; display:flex; gap: 8px;">
+                <div style="margin-left:auto; display:flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                    <el-select v-model="filterCategoryId" style="width: 200px;" clearable placeholder="按分类筛选">
+                        <el-option label="全部分类" value="" />
+                        <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="String(c.id)" />
+                    </el-select>
+                    <el-button plain @click="goCategory" title="管理续费分类">
+                        <i class="bi bi-tags"></i>
+                        续费分类
+                    </el-button>
                     <el-button type="primary" @click="goCreate">
                         <i class="bi bi-plus-lg"></i>
                         新建续费
@@ -45,8 +53,21 @@
             </div>
 
             <el-card shadow="hover" style="border-radius: 12px;">
-                <el-table v-loading="loading" :data="renewals" style="width: 100%" empty-text="暂无续费项目">
+                <el-table v-loading="loading" :data="filteredRenewals" style="width: 100%" empty-text="暂无续费项目">
                     <el-table-column prop="name" label="名称" min-width="160"></el-table-column>
+                    <el-table-column label="分类" width="160">
+                        <template #default="{ row }">
+                            <el-tag
+                                v-if="categoryMap[String(row.category_id)]"
+                                size="small"
+                                effect="dark"
+                                :style="{ backgroundColor: categoryMap[String(row.category_id)].color || '#409EFF', borderColor: categoryMap[String(row.category_id)].color || '#409EFF' }"
+                            >
+                                {{ categoryMap[String(row.category_id)].name }}
+                            </el-tag>
+                            <span v-else class="muted">未分类</span>
+                        </template>
+                    </el-table-column>
                     <el-table-column label="描述" min-width="240">
                         <template #default="{ row }">
                             <span class="muted">{{ row.description || '无描述' }}</span>
@@ -104,7 +125,7 @@
     <script src="/vendor/vue/vue.global.prod.js"></script>
     <script src="/vendor/element-plus/index.full.js"></script>
     <script>
-        const { createApp, ref, reactive, onMounted } = Vue;
+        const { createApp, ref, reactive, onMounted, computed } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
 
         createApp({
@@ -113,6 +134,24 @@
                 const saving = ref(false);
                 const renewals = ref([]);
                 const categories = ref([]);
+                const filterCategoryId = ref('');
+
+                const categoryMap = computed(() => {
+                    const map = {};
+                    const list = Array.isArray(categories.value) ? categories.value : [];
+                    for (const c of list) {
+                        if (!c) continue;
+                        map[String(c.id)] = c;
+                    }
+                    return map;
+                });
+
+                const filteredRenewals = computed(() => {
+                    const list = Array.isArray(renewals.value) ? renewals.value : [];
+                    const selected = String(filterCategoryId.value || '').trim();
+                    if (!selected) return list;
+                    return list.filter(r => String(r.category_id) === selected);
+                });
 
                 const editVisible = ref(false);
                 const formRef = ref(null);
@@ -285,6 +324,10 @@
                     window.location.href = '/dash.html';
                 };
 
+                const goCategory = () => {
+                    window.location.href = '/view/renewal_category.html';
+                };
+
                 const goCreate = () => {
                     window.location.href = '/create/renewal.html';
                 };
@@ -300,6 +343,9 @@
                     saving,
                     renewals,
                     categories,
+                    filterCategoryId,
+                    categoryMap,
+                    filteredRenewals,
                     editVisible,
                     formRef,
                     edit,
@@ -309,6 +355,7 @@
                     save,
                     remove,
                     goBack,
+                    goCategory,
                     goCreate
                 };
             }

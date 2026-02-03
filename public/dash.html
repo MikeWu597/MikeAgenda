@@ -188,6 +188,7 @@
             border: 1px solid #e4e7ed;
             cursor: pointer;
             transition: all 0.3s;
+            overflow: hidden;
         }
         .item-card:hover {
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
@@ -273,6 +274,44 @@
                 min-width: 220px;
             }
         }
+
+        /* 首页待办事项：移动端适配，避免超宽 */
+        .todo-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .todo-tags {
+            display: inline-flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            max-width: 100%;
+        }
+        .todo-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        @media (max-width: 520px) {
+            .todo-title-row {
+                flex-wrap: wrap;
+                align-items: flex-start;
+            }
+            .todo-tags {
+                flex: 1 1 100%;
+            }
+            .todo-text {
+                flex: 1 1 100%;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                word-break: break-word;
+            }
+        }
     </style>
 </head>
 <body>
@@ -331,34 +370,40 @@
                     </div>
                 </div>
 
-                <!-- 待办事项 -->
-                <div class="section-card" v-if="items.length > 0">
+                <!-- 待办事项（始终显示） -->
+                <div class="section-card">
                     <div class="section-title">
                         <span><i class="bi bi-check-circle section-icon"></i>待办事项 <span class="count-badge">{{ items.length }}</span></span>
                         <el-button type="primary" size="small" @click="goToPage('/view/item.html')">
                             <i class="bi bi-gear"></i> 管理
                         </el-button>
                     </div>
-                    <div v-for="item in items" :key="item.id" class="item-card" @click="goToPage('/view/item.html')">
-                        <div class="item-title" style="display:flex; align-items:center; gap: 8px; min-width: 0;">
-                            <span v-if="item.categoryTags && item.categoryTags.length" style="display:inline-flex; gap: 6px; flex-wrap: wrap;">
-                                <el-tag
-                                    v-for="c in item.categoryTags"
-                                    :key="String(c.id)"
-                                    size="small"
-                                    effect="dark"
-                                    :style="{ backgroundColor: c.color || '#409EFF', borderColor: c.color || '#409EFF' }"
-                                >
-                                    {{ c.name }}
-                                </el-tag>
-                            </span>
-                            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                {{ item.title }}
-                            </span>
+                    <template v-if="items.length > 0">
+                        <div v-for="item in items" :key="item.id" class="item-card" @click="goToPage('/view/item.html')">
+                            <div class="item-title todo-title-row">
+                                <span v-if="item.categoryTags && item.categoryTags.length" class="todo-tags">
+                                    <el-tag
+                                        v-for="c in item.categoryTags"
+                                        :key="String(c.id)"
+                                        size="small"
+                                        effect="dark"
+                                        :style="{ backgroundColor: c.color || '#409EFF', borderColor: c.color || '#409EFF' }"
+                                    >
+                                        {{ c.name }}
+                                    </el-tag>
+                                </span>
+                                <span class="todo-text">
+                                    {{ item.title }}
+                                </span>
+                            </div>
+                            <div class="item-meta">
+                                <span v-if="item.deadline"><i class="bi bi-alarm"></i> {{ item.deadline }}</span>
+                            </div>
                         </div>
-                        <div class="item-meta">
-                            <span v-if="item.deadline"><i class="bi bi-alarm"></i> {{ item.deadline }}</span>
-                        </div>
+                    </template>
+                    <div v-else class="empty-state">
+                        <div class="empty-icon"><i class="bi bi-inbox"></i></div>
+                        <div>今天没有待办事项</div>
                     </div>
                 </div>
 
@@ -437,6 +482,9 @@
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/renewal.html')">
                             <i class="bi bi-bell"></i> 续订
+                        </el-dropdown-item>
+                        <el-dropdown-item @click="goToPage('/view/renewal_category.html')">
+                            <i class="bi bi-tags"></i> 续费分类
                         </el-dropdown-item>
                         <el-dropdown-item @click="goToPage('/view/project.html')">
                             <i class="bi bi-folder"></i> 项目
@@ -592,8 +640,29 @@
                         const data = await response.json();
                         if (data.success) {
                             const dateStr = formattedDate.value;
-                            items.value = data.items.filter(item => {
-                                return item.deadline === dateStr || item.planned_time?.startsWith(dateStr);
+                            const extractYmd = (value) => {
+                                if (!value) return null;
+                                const s = String(value);
+                                const m = s.match(/\d{4}-\d{2}-\d{2}/);
+                                return m ? m[0] : null;
+                            };
+
+                            items.value = (Array.isArray(data.items) ? data.items : []).filter((item) => {
+                                const deadlineYmd = extractYmd(item && item.deadline);
+                                const plannedYmd = extractYmd(item && item.planned_time);
+
+                                // 有 deadline：deadline 当天及之前都显示
+                                if (deadlineYmd) {
+                                    return String(dateStr) <= String(deadlineYmd);
+                                }
+
+                                // 仅设置了 planned_time：只在当天显示
+                                if (plannedYmd) {
+                                    return plannedYmd === dateStr;
+                                }
+
+                                // 两者都没设置：任何日期都显示
+                                return true;
                             });
 
                             // 为首页待办事项补齐分类（含颜色）

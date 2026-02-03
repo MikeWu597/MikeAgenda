@@ -46,7 +46,7 @@
             </div>
 
             <el-card shadow="hover" style="border-radius: 12px;">
-                <el-empty v-if="!loading && categories.length === 0" description="暂无续费分类" />
+                <el-empty v-if="!loading && categories.length === 0" description="暂无续费分类"></el-empty>
                 <el-collapse v-if="categories.length > 0" v-model="activeIds" @change="onCollapseChange">
                     <el-collapse-item v-for="c in categories" :key="c.id" :name="String(c.id)">
                         <template #title>
