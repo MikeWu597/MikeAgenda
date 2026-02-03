@@ -647,23 +647,74 @@
                                 return m ? m[0] : null;
                             };
 
-                            items.value = (Array.isArray(data.items) ? data.items : []).filter((item) => {
-                                const deadlineYmd = extractYmd(item && item.deadline);
-                                const plannedYmd = extractYmd(item && item.planned_time);
+                            const extractTimeMinutes = (value) => {
+                                if (!value) return null;
+                                const s = String(value);
+                                const m = s.match(/(\d{2}):(\d{2})(?::\d{2})?/);
+                                if (!m) return null;
+                                const hh = Number(m[1]);
+                                const mm = Number(m[2]);
+                                if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+                                return hh * 60 + mm;
+                            };
 
-                                // 有 deadline：deadline 当天及之前都显示
-                                if (deadlineYmd) {
-                                    return String(dateStr) <= String(deadlineYmd);
-                                }
+                            items.value = (Array.isArray(data.items) ? data.items : [])
+                                .filter((item) => {
+                                    const plannedYmd = extractYmd(item && item.planned_time);
+                                    if (plannedYmd) {
+                                        // 设置了计划日期：只在计划日期当天显示（优先级高于 deadline）
+                                        return plannedYmd === dateStr;
+                                    }
 
-                                // 仅设置了 planned_time：只在当天显示
-                                if (plannedYmd) {
-                                    return plannedYmd === dateStr;
-                                }
+                                    const deadlineYmd = extractYmd(item && item.deadline);
+                                    if (deadlineYmd) {
+                                        // 未设置计划日期：在截止日期前（含当天）显示
+                                        return String(dateStr) <= String(deadlineYmd);
+                                    }
 
-                                // 两者都没设置：任何日期都显示
-                                return true;
-                            });
+                                    // 未设置计划日期/截止日期：一直显示
+                                    return true;
+                                })
+                                .sort((a, b) => {
+                                    const buildKey = (item) => {
+                                        const deadlineYmd = extractYmd(item && item.deadline);
+                                        const plannedYmd = extractYmd(item && item.planned_time);
+                                        const plannedMinutes = extractTimeMinutes(item && item.planned_time);
+
+                                        // group: 0=按截止日期，1=按计划时间，2=无日期
+                                        if (deadlineYmd) {
+                                            return {
+                                                group: 0,
+                                                ymd: String(deadlineYmd),
+                                                minutes: plannedMinutes != null ? plannedMinutes : (24 * 60 - 1)
+                                            };
+                                        }
+                                        if (plannedYmd) {
+                                            return {
+                                                group: 1,
+                                                ymd: String(plannedYmd),
+                                                minutes: plannedMinutes != null ? plannedMinutes : (24 * 60 - 1)
+                                            };
+                                        }
+                                        return {
+                                            group: 2,
+                                            ymd: '9999-12-31',
+                                            minutes: (24 * 60 - 1)
+                                        };
+                                    };
+
+                                    const ka = buildKey(a);
+                                    const kb = buildKey(b);
+                                    if (ka.group !== kb.group) return ka.group - kb.group;
+                                    if (ka.ymd !== kb.ymd) return ka.ymd.localeCompare(kb.ymd);
+                                    if (ka.minutes !== kb.minutes) return ka.minutes - kb.minutes;
+
+                                    const aTitle = String((a && a.title) || '');
+                                    const bTitle = String((b && b.title) || '');
+                                    if (aTitle !== bTitle) return aTitle.localeCompare(bTitle, 'zh-CN');
+
+                                    return Number((a && a.id) || 0) - Number((b && b.id) || 0);
+                                });
 
                             // 为首页待办事项补齐分类（含颜色）
                             const cats = Array.isArray(categories.value) ? categories.value : [];
