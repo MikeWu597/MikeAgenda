@@ -33,6 +33,10 @@
                 </el-button>
                 <div class="page-title">系统状态</div>
                 <div style="margin-left:auto; display:flex; gap: 8px;">
+                    <el-button plain @click="goHome">
+                        <i class="bi bi-house"></i>
+                        首页
+                    </el-button>
                     <el-button type="primary" plain @click="load" :loading="loading">
                         <i class="bi bi-arrow-repeat"></i>
                         刷新
@@ -103,12 +107,16 @@
                 };
 
                 const goBack = () => {
-                    window.location.href = '/';
+                    window.location.href = '/dash.html';
+                };
+
+                const goHome = () => {
+                    window.location.href = '/dash.html';
                 };
 
                 onMounted(load);
 
-                return { loading, status, formatUptime, load, goBack };
+                return { loading, status, formatUptime, load, goBack, goHome };
             }
         }).use(ElementPlus).mount('#app');
     </script>
